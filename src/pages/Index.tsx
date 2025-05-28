@@ -17,48 +17,56 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header/Introduction */}
+    <div className="min-h-screen bg-black text-white">
+      {/* Header Section */}
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 mb-6 leading-tight">
-            Ciao, sono Marco
-          </h1>
-          <p className="text-lg md:text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            Aiuto professionisti e imprenditori a raggiungere i loro obiettivi attraverso 
-            strategie personalizzate e innovative. Scopri come posso aiutarti a trasformare 
-            le tue idee in successi concreti.
-          </p>
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          {/* Top testimonial box */}
+          <div className="border border-gray-600 border-dashed p-4 rounded-lg mb-8">
+            <p className="text-gray-300 text-sm">
+              Dopo aver fatto generare più di<br />
+              1 miliardo di visualizzazioni totali, giovane<br />
+              imprenditore rivela...
+            </p>
+          </div>
+
+          {/* Main headline */}
+          <div className="space-y-4">
+            <h1 className="text-3xl md:text-5xl font-bold leading-tight">
+              Come Centinaia Di Persone<br />
+              <span className="text-yellow-400">Ricevono 1.000 € A<br />
+              Settimana</span> In Meno Di 58<br />
+              Minuti Al Giorno Grazie Ad<br />
+              Instagram
+            </h1>
+            
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto leading-relaxed">
+              E come professionisti, mamme single o dipendenti 
+              stanchi stanno usando la stessa skill per 
+              rimpiazzare il proprio lavoro
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Video Section */}
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8">
-            {!videoStarted && (
-              <PreVideoMessage onStart={handleVideoStart} />
-            )}
-            
-            {videoStarted && (
-              <div className="space-y-6">
-                <VideoPlayer onVideoEnd={handleVideoEnd} />
-                
-                {videoEnded && (
-                  <div className="animate-fade-in">
-                    <CallToActionButton />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-slate-500 text-sm">
-          <p>© 2024 - Tutti i diritti riservati</p>
+          {!videoStarted && (
+            <PreVideoMessage onStart={handleVideoStart} />
+          )}
+          
+          {videoStarted && (
+            <div className="space-y-6">
+              <VideoPlayer onVideoEnd={handleVideoEnd} />
+              
+              {videoEnded && (
+                <div className="animate-fade-in">
+                  <CallToActionButton />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
