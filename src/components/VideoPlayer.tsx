@@ -1,5 +1,5 @@
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Play } from "lucide-react";
 
 interface VideoPlayerProps {
@@ -19,6 +19,14 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
       });
       setIsPlaying(true);
       setHasStarted(true);
+      
+      // SIMULAZIONE: Simula la fine del video dopo 3 secondi
+      console.log("Video simulato iniziato - terminerà in 3 secondi");
+      setTimeout(() => {
+        console.log("Simulazione video terminato - mostro pulsante WhatsApp");
+        setIsPlaying(false);
+        onVideoEnd();
+      }, 3000);
     }
   };
 
@@ -55,9 +63,9 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
               <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
                 <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
               </div>
-              <p className="text-lg">Carica il tuo video qui</p>
+              <p className="text-lg">Video di Test - Simulazione</p>
               <p className="text-sm text-white/80">
-                Sostituisci "placeholder-video.mp4" con il tuo file video
+                Clicca play e il pulsante WhatsApp apparirà dopo 3 secondi
               </p>
             </div>
           </div>
