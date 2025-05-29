@@ -1,5 +1,6 @@
 
-import { useRef, useEffect } from "react";
+import { useRef, useState } from "react";
+import { Play } from "lucide-react";
 
 interface VideoPlayerProps {
   onVideoEnd: () => void;
@@ -7,40 +8,47 @@ interface VideoPlayerProps {
 
 const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
 
-  useEffect(() => {
+  const handlePlayClick = () => {
     const video = videoRef.current;
     if (video) {
-      // Auto-play the video when component mounts
       video.play().catch((error) => {
-        console.log("Autoplay was prevented:", error);
+        console.log("Play was prevented:", error);
       });
-
-      // Add event listener for when video ends
-      const handleEnded = () => {
-        onVideoEnd();
-      };
-
-      video.addEventListener('ended', handleEnded);
-
-      return () => {
-        video.removeEventListener('ended', handleEnded);
-      };
+      setIsPlaying(true);
+      setHasStarted(true);
     }
-  }, [onVideoEnd]);
+  };
+
+  const handleVideoEnd = () => {
+    setIsPlaying(false);
+    onVideoEnd();
+  };
+
+  const handleVideoPause = () => {
+    setIsPlaying(false);
+  };
+
+  const handleVideoPlay = () => {
+    setIsPlaying(true);
+  };
 
   return (
-    <div className="relative w-full">
-      <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg">
+    <div className="relative w-full max-w-2xl mx-auto">
+      <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative">
         <video
           ref={videoRef}
           className="w-full h-full object-cover"
-          controls={false}
+          controls={hasStarted}
           muted
           playsInline
           preload="metadata"
+          onEnded={handleVideoEnd}
+          onPause={handleVideoPause}
+          onPlay={handleVideoPlay}
         >
-          {/* Placeholder for when user uploads their video */}
           <source src="/placeholder-video.mp4" type="video/mp4" />
           <div className="flex items-center justify-center h-full text-white">
             <div className="text-center space-y-4">
@@ -54,10 +62,16 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
             </div>
           </div>
         </video>
+        
+        {/* Custom Play Button Overlay */}
+        {!hasStarted && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer" onClick={handlePlayClick}>
+            <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
+            </div>
+          </div>
+        )}
       </div>
-      
-      {/* Custom overlay to ensure no controls are visible */}
-      <div className="absolute inset-0 pointer-events-none rounded-xl"></div>
     </div>
   );
 };
