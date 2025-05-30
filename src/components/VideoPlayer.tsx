@@ -228,9 +228,10 @@ const VideoPlayer = () => {
               <div className="w-full h-full relative">
                 <div className="absolute inset-0">
                   <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
+                    {/* FIX CRITICO: Rimuovi il parametro muted dall'URL */}
                     <iframe
                       id="vimeo-player"
-                      src={`https://player.vimeo.com/video/898897743?autoplay=1&background=0&loop=0&autopause=0&muted=${isMuted ? 1 : 0}&controls=0&title=0&byline=0&portrait=0&badge=0`}
+                      src={`https://player.vimeo.com/video/898897743?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0`}
                       frameBorder="0"
                       allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
                       style={{ 
