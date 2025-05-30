@@ -1,26 +1,12 @@
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// Componente VideoEndPopup
-const VideoEndPopup = () => (
-  <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
-    <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 p-8 rounded-xl max-w-md text-center">
-      <h2 className="text-2xl font-bold mb-4 text-yellow-400">Contenuto Sbloccato!</h2>
-      <p className="mb-6 text-gray-300">Complimenti, hai completato il video. Ora puoi accedere al contenuto esclusivo.</p>
-      <Button className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-6 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-        Accedi Ora
-      </Button>
-    </div>
-  </div>
-);
 
 const VideoPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showButton, setShowButton] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -69,7 +55,6 @@ const VideoPlayer = () => {
         
         playerRef.current.on('pause', () => {
           setIsPlaying(false);
-          // Mantieni i controlli visibili durante la pausa
           setShowControls(true);
           clearControlsTimer();
         });
@@ -96,7 +81,6 @@ const VideoPlayer = () => {
     }
     
     controlsTimeout.current = setTimeout(() => {
-      // Nascondi i controlli solo se il video è in riproduzione
       if (isPlaying) {
         setShowControls(false);
       }
@@ -132,7 +116,8 @@ const VideoPlayer = () => {
   };
 
   const handleButtonClick = () => {
-    setShowPopup(true);
+    // Naviga alla seconda pagina
+    window.location.href = "/step2";
   };
 
   const togglePlayPause = () => {
@@ -161,12 +146,6 @@ const VideoPlayer = () => {
       playerRef.current.setVolume(newVolume);
       setIsMuted(newVolume === 0);
     }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const calculateProgress = () => {
@@ -282,8 +261,9 @@ const VideoPlayer = () => {
             )}
           </div>
 
-          {isPlaying && !videoEnded && (
-            <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4 animate-fade-in">
+          {/* Timer rimane sempre visibile durante la riproduzione */}
+          {hasStarted && !videoEnded && (
+            <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4">
               <div className="flex items-center justify-center space-x-2 mb-2">
                 <Timer className="w-5 h-5 text-blue-400" />
                 <span className="text-blue-400 font-semibold text-lg">
@@ -291,7 +271,7 @@ const VideoPlayer = () => {
                 </span>
               </div>
               <p className="text-white/90 text-sm">
-                ⏱️ Continua a guardare fino alla fine per sbloccare il contenuto
+                Continua a guardare fino alla fine per sbloccare il contenuto
               </p>
             </div>
           )}
@@ -300,7 +280,7 @@ const VideoPlayer = () => {
             <div className="text-center bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-6 animate-fade-in">
               <p className="text-white/90 text-sm mb-4 leading-relaxed">
                 🎯 <span className="font-semibold text-yellow-400">Congratulazioni!</span><br />
-                <span className="text-white/70">Hai completato il video. Ora hai accesso al contenuto esclusivo</span>
+                <span className="text-white/70">Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online"</span>
               </p>
               
               <Button
@@ -308,14 +288,12 @@ const VideoPlayer = () => {
                 size="lg"
                 className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
-                🎥 Sblocca Contenuto Esclusivo
+                🎥 Accedi al Contenuto Esclusivo
               </Button>
             </div>
           )}
         </div>
       </div>
-
-      {showPopup && <VideoEndPopup />}
     </div>
   );
 };
