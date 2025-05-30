@@ -1,14 +1,22 @@
 
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import VideoEndPopup from "./VideoEndPopup";
 
-interface VideoPlayerProps {
-  onVideoEnd: () => void;
-}
+// Componente VideoEndPopup per completare la struttura
+const VideoEndPopup = () => (
+  <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+    <div className="bg-white p-8 rounded-xl max-w-md text-center">
+      <h2 className="text-2xl font-bold mb-4">Contenuto Sbloccato!</h2>
+      <p className="mb-6">Complimenti, hai completato il video. Ora puoi accedere al contenuto esclusivo.</p>
+      <Button className="bg-green-500 hover:bg-green-600 text-white">
+        Accedi Ora
+      </Button>
+    </div>
+  </div>
+);
 
-const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
+const VideoPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showButton, setShowButton] = useState(false);
@@ -18,10 +26,9 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
-  const playerRef = useRef<any>(null);
-  const controlsRef = useRef<HTMLDivElement>(null);
   const [showControls, setShowControls] = useState(true);
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
+  const playerRef = useRef<any>(null);
 
   // Carica lo script Vimeo API
   useEffect(() => {
@@ -40,18 +47,18 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
     if (!hasStarted) return;
     
     const timer = setTimeout(() => {
-      const iframe = document.querySelector('iframe');
+      const iframe = document.getElementById('vimeo-player');
       if (iframe) {
         // @ts-ignore
-        playerRef.current = new Vimeo.Player(iframe);
+        playerRef.current = new window.Vimeo.Player(iframe);
         
         // Imposta il volume iniziale
-        playerRef.current.setVolume(volume);
+        playerRef.current.setVolume(volume).catch(() => {});
         
         // Ottieni la durata del video
         playerRef.current.getDuration().then((duration: number) => {
           setVideoDuration(Math.floor(duration));
-        });
+        }).catch(() => {});
         
         // Gestisci gli eventi
         playerRef.current.on('play', () => {
@@ -69,7 +76,6 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
         playerRef.current.on('ended', () => {
           setVideoEnded(true);
           setShowButton(true);
-          onVideoEnd();
           setIsPlaying(false);
         });
         
@@ -80,7 +86,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [hasStarted, onEnded, volume]);
+  }, [hasStarted, volume]);
 
   // Timer per nascondere i controlli
   const startControlsTimer = () => {
@@ -134,9 +140,10 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
     if (playerRef.current) {
-      playerRef.current.setVolume(isMuted ? volume : 0);
+      playerRef.current.setVolume(newMuted ? 0 : volume);
     }
   };
 
@@ -162,146 +169,178 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   };
 
   return (
-    <>
-      <div className="relative w-full max-w-2xl mx-auto space-y-6">
-        <div className="text-center">
-          <p className="text-white/70 text-sm">
-            📺 Guarda tutto il video per sbloccare il pulsante e continuare
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center">
+      <div className="w-full max-w-4xl mx-auto">
+        <header className="text-center mb-10">
+          <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">
+            Contenuto Video Esclusivo
+          </h1>
+          <p className="text-gray-400 max-w-xl mx-auto">
+            Guarda il video completo per sbloccare contenuti premium e accedere a risorse esclusive
           </p>
-        </div>
+        </header>
 
-        <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group">
-          {!hasStarted ? (
-            <div className="w-full h-full flex items-center justify-center bg-black/50">
-              <div 
-                className="absolute inset-0 flex items-center justify-center cursor-pointer" 
-                onClick={handlePlayClick}
-              >
-                <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="w-full h-full relative">
-              <div className="absolute inset-0">
-                <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
-                  <iframe
-                    src={`https://player.vimeo.com/video/898897743?autoplay=1&background=1&loop=0&autopause=0&muted=${isMuted ? 1 : 0}&controls=0&title=0&byline=0&portrait=0&badge=0`}
-                    frameBorder="0"
-                    allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
-                    style={{ 
-                      position: 'absolute', 
-                      top: 0, 
-                      left: 0, 
-                      width: '100%', 
-                      height: '100%',
-                      borderRadius: '0.75rem',
-                      overflow: 'hidden'
-                    }}
-                    title="Video Esclusivo"
-                    allowFullScreen
-                  ></iframe>
-                </div>
-              </div>
-              
-              {/* Overlay per prevenire il click destro */}
-              <div 
-                className="absolute inset-0 z-10"
-                onContextMenu={(e) => e.preventDefault()}
-              />
-              
-              {/* Barra di progresso */}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 z-20">
+        <div className="relative w-full max-w-2xl mx-auto space-y-6">
+          <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group">
+            {!hasStarted ? (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
                 <div 
-                  className="h-full bg-yellow-500 transition-all duration-200"
-                  style={{ width: `${calculateProgress()}%` }}
-                ></div>
-              </div>
-              
-              {/* Controlli video personalizzati */}
-              {(showControls || !isPlaying) && (
-                <div 
-                  ref={controlsRef}
-                  className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+                  className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer gap-4" 
+                  onClick={handlePlayClick}
                 >
-                  <div className="flex items-center space-x-4">
-                    <button 
-                      onClick={togglePlayPause}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isPlaying ? (
-                        <Pause className="w-6 h-6" />
-                      ) : (
-                        <Play className="w-6 h-6" />
-                      )}
-                    </button>
-                    
-                    <button 
-                      onClick={toggleMute}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isMuted ? (
-                        <VolumeX className="w-5 h-5" />
-                      ) : (
-                        <Volume2 className="w-5 h-5" />
-                      )}
-                    </button>
-                    
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeChange}
-                      className="w-24 accent-yellow-500"
-                    />
-                    
-                    <div className="text-white text-sm">
-                      {formatTime(currentTime)} / {formatTime(videoDuration)}
-                    </div>
+                  <div className="bg-yellow-500 hover:bg-yellow-600 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                    <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
+                  </div>
+                  <p className="text-lg font-medium">Clicca per iniziare il video</p>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full h-full relative">
+                <div className="absolute inset-0">
+                  <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
+                    <iframe
+                      id="vimeo-player"
+                      src={`https://player.vimeo.com/video/898897743?autoplay=1&background=0&loop=0&autopause=0&muted=${isMuted ? 1 : 0}&controls=0&title=0&byline=0&portrait=0&badge=0`}
+                      frameBorder="0"
+                      allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+                      style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        width: '100%', 
+                        height: '100%',
+                        borderRadius: '0.75rem',
+                        overflow: 'hidden'
+                      }}
+                      title="Video Esclusivo"
+                      allowFullScreen
+                    ></iframe>
                   </div>
                 </div>
-              )}
+                
+                {/* Overlay per prevenire il click destro */}
+                <div 
+                  className="absolute inset-0 z-10"
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+                
+                {/* Barra di progresso */}
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
+                  <div 
+                    className="h-full bg-yellow-500 transition-all duration-200"
+                    style={{ width: `${calculateProgress()}%` }}
+                  ></div>
+                </div>
+                
+                {/* Controlli video personalizzati */}
+                {(showControls || !isPlaying) && (
+                  <div 
+                    className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <button 
+                        onClick={togglePlayPause}
+                        className="text-white hover:text-yellow-400 transition-colors"
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-6 h-6" />
+                        ) : (
+                          <Play className="w-6 h-6" fill="currentColor" />
+                        )}
+                      </button>
+                      
+                      <button 
+                        onClick={toggleMute}
+                        className="text-white hover:text-yellow-400 transition-colors"
+                      >
+                        {isMuted ? (
+                          <VolumeX className="w-5 h-5" />
+                        ) : (
+                          <Volume2 className="w-5 h-5" />
+                        )}
+                      </button>
+                      
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        className="w-24 accent-yellow-500"
+                      />
+                      
+                      <div className="text-white text-sm">
+                        {formatTime(currentTime)} / {formatTime(videoDuration)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {isPlaying && !videoEnded && (
+            <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4 animate-fade-in">
+              <div className="flex items-center justify-center space-x-2 mb-2">
+                <Timer className="w-5 h-5 text-blue-400" />
+                <span className="text-blue-400 font-semibold text-lg">
+                  {formatTime(videoDuration - currentTime)} rimanenti
+                </span>
+              </div>
+              <p className="text-white/90 text-sm">
+                ⏱️ Continua a guardare fino alla fine per sbloccare il contenuto
+              </p>
+            </div>
+          )}
+
+          {showButton && (
+            <div className="text-center bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-6 animate-fade-in">
+              <p className="text-white/90 text-sm mb-4 leading-relaxed">
+                🎯 <span className="font-semibold text-yellow-400">Congratulazioni!</span><br />
+                <span className="text-white/70">Hai completato il video. Ora hai accesso al contenuto esclusivo</span>
+              </p>
+              
+              <Button
+                onClick={handleButtonClick}
+                size="lg"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              >
+                🎥 Sblocca Contenuto Esclusivo
+              </Button>
             </div>
           )}
         </div>
 
-        {isPlaying && !videoEnded && (
-          <div className="text-center bg-gradient-to-r from-blue-400/10 to-purple-400/10 border border-blue-400/30 rounded-xl p-4 animate-fade-in">
-            <div className="flex items-center justify-center space-x-2 mb-2">
-              <Timer className="w-5 h-5 text-blue-400" />
-              <span className="text-blue-400 font-semibold text-lg">
-                {formatTime(videoDuration - currentTime)} rimanenti
-              </span>
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700">
+            <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
+              <Play className="w-5 h-5 text-blue-400" />
             </div>
-            <p className="text-white/90 text-sm">
-              ⏱️ Tempo rimanente - resta fino alla fine per sbloccare il contenuto
-            </p>
+            <h3 className="text-lg font-semibold mb-2">Contenuti Premium</h3>
+            <p className="text-slate-400">Accesso a video esclusivi non disponibili altrove</p>
           </div>
-        )}
-
-        {showButton && (
-          <div className="text-center bg-gradient-to-r from-yellow-400/10 to-orange-400/10 border border-yellow-400/30 rounded-xl p-6 animate-fade-in">
-            <p className="text-white/90 text-sm mb-4 leading-relaxed">
-              🎯 <span className="font-semibold text-yellow-400">Congratulazioni!</span><br />
-              <span className="text-white/70">Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online"</span>
-            </p>
-            
-            <Button
-              onClick={handleButtonClick}
-              size="lg"
-              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-            >
-              🎥 Accedi al Contenuto Esclusivo
-            </Button>
+          
+          <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700">
+            <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center mb-4">
+              <Volume2 className="w-5 h-5 text-green-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Audio di Qualità</h3>
+            <p className="text-slate-400">Regola l'audio come preferisci per la migliore esperienza</p>
           </div>
-        )}
+          
+          <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700">
+            <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
+              <Timer className="w-5 h-5 text-purple-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Progressione</h3>
+            <p className="text-slate-400">Visualizza il tuo avanzamento in tempo reale</p>
+          </div>
+        </div>
       </div>
 
       {showPopup && <VideoEndPopup />}
-    </>
+    </div>
   );
 };
 
