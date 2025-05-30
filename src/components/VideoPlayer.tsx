@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Componente VideoEndPopup (ripristinato)
+// Componente VideoEndPopup
 const VideoEndPopup = ({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) => (
   <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
     <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center">
@@ -40,8 +40,10 @@ const VideoPlayer = () => {
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
+  const playerInitializedRef = useRef(false);
 
   // Carica lo script Vimeo API
   useEffect(() => {
@@ -55,51 +57,79 @@ const VideoPlayer = () => {
     };
   }, []);
 
-  // Inizializza il player Vimeo
+  // Inizializza il player Vimeo (solo una volta)
   useEffect(() => {
-    if (!hasStarted) return;
+    if (!hasStarted || playerInitializedRef.current) return;
     
     const timer = setTimeout(() => {
       const iframe = document.getElementById('vimeo-player');
       if (iframe) {
         // @ts-ignore
         playerRef.current = new window.Vimeo.Player(iframe);
-        
-        // Imposta il volume iniziale
-        playerRef.current.setVolume(volume).catch(() => {});
+        playerInitializedRef.current = true;
         
         // Ottieni la durata del video
         playerRef.current.getDuration().then((duration: number) => {
           setVideoDuration(Math.floor(duration));
         }).catch(() => {});
-        
-        // Gestisci gli eventi
-        playerRef.current.on('play', () => {
-          setIsPlaying(true);
-          setShowControls(true);
-          startControlsTimer();
-        });
-        
-        playerRef.current.on('pause', () => {
-          setIsPlaying(false);
-          setShowControls(true);
-          clearControlsTimer();
-        });
-        
-        playerRef.current.on('ended', () => {
-          setVideoEnded(true);
-          setShowButton(true);
-          setIsPlaying(false);
-        });
-        
-        playerRef.current.on('timeupdate', (data: any) => {
-          setCurrentTime(Math.floor(data.seconds));
-        });
       }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [hasStarted, volume]);
+  }, [hasStarted]);
+
+  // Configura gli eventi del player dopo l'inizializzazione
+  useEffect(() => {
+    if (!playerRef.current) return;
+    
+    const player = playerRef.current;
+    
+    // Imposta il volume iniziale
+    player.setVolume(volume).catch(() => {});
+    
+    // Gestisci gli eventi
+    const handlePlay = () => {
+      setIsPlaying(true);
+      setShowControls(true);
+      startControlsTimer();
+    };
+    
+    const handlePause = () => {
+      setIsPlaying(false);
+      setShowControls(true);
+      clearControlsTimer();
+    };
+    
+    const handleEnd = () => {
+      setVideoEnded(true);
+      setShowButton(true);
+      setIsPlaying(false);
+    };
+    
+    const handleTimeUpdate = (data: any) => {
+      setCurrentTime(Math.floor(data.seconds));
+    };
+    
+    player.on('play', handlePlay);
+    player.on('pause', handlePause);
+    player.on('ended', handleEnd);
+    player.on('timeupdate', handleTimeUpdate);
+    
+    return () => {
+      player.off('play', handlePlay);
+      player.off('pause', handlePause);
+      player.off('ended', handleEnd);
+      player.off('timeupdate', handleTimeUpdate);
+    };
+  }, []);
+
+  // Gestione del volume separata
+  useEffect(() => {
+    if (!playerRef.current) return;
+    
+    playerRef.current.setVolume(volume).catch(() => {});
+    setIsMuted(volume === 0);
+  }, [volume]);
 
   // Timer per nascondere i controlli
   const startControlsTimer = () => {
@@ -147,7 +177,6 @@ const VideoPlayer = () => {
   };
 
   const handleContinue = () => {
-    // Naviga alla seconda pagina
     window.location.href = "/step2";
   };
 
@@ -162,21 +191,13 @@ const VideoPlayer = () => {
   };
 
   const toggleMute = () => {
-    const newMuted = !isMuted;
-    setIsMuted(newMuted);
-    if (playerRef.current) {
-      playerRef.current.setVolume(newMuted ? 0 : volume);
-    }
+    setIsMuted(!isMuted);
+    setVolume(isMuted ? 0.7 : 0);
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
-    
-    if (playerRef.current) {
-      playerRef.current.setVolume(newVolume);
-      setIsMuted(newVolume === 0);
-    }
   };
 
   const calculateProgress = () => {
@@ -326,7 +347,7 @@ const VideoPlayer = () => {
         </div>
       </div>
 
-      {/* Popup di fine video (ripristinato) */}
+      {/* Popup di fine video */}
       {showPopup && (
         <VideoEndPopup 
           onClose={() => setShowPopup(false)} 
