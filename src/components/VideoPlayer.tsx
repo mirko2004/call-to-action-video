@@ -161,11 +161,11 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-blue-400" />
               <span className="text-blue-400 font-semibold text-lg">
-                {formatTime(currentTime)} / {formatTime(videoDuration)}
+                {videoDuration - currentTime} secondi rimanenti
               </span>
             </div>
             <p className="text-white/90 text-sm">
-              ⏱️ Durata del video - resta fino alla fine per sbloccare il contenuto
+              ⏱️ Tempo rimanente - resta fino alla fine per sbloccare il contenuto
             </p>
           </div>
         )}
