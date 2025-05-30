@@ -1,19 +1,19 @@
 
 import { useRef, useState, useEffect } from "react";
 import { Play, Timer } from "lucide-react";
-import VideoEndPopup from "./VideoEndPopup";
+import FinalPopup from "./FinalPopup";
 
-interface VideoPlayerProps {
+interface SecondVideoPlayerProps {
   onVideoEnd: () => void;
 }
 
-const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
+const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(3);
   const [showTimer, setShowTimer] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
+  const [showFinalPopup, setShowFinalPopup] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -44,12 +44,12 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
       setShowTimer(true);
       
       // SIMULAZIONE: Simula la fine del video dopo 3 secondi
-      console.log("Video simulato iniziato - terminerà in 3 secondi");
+      console.log("Secondo video simulato iniziato - terminerà in 3 secondi");
       setTimeout(() => {
-        console.log("Simulazione video terminato - mostro popup");
+        console.log("Secondo video terminato - mostro popup finale");
         setIsPlaying(false);
         setShowTimer(false);
-        setShowPopup(true);
+        setShowFinalPopup(true);
         onVideoEnd();
       }, 3000);
     }
@@ -58,7 +58,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   const handleVideoEnd = () => {
     setIsPlaying(false);
     setShowTimer(false);
-    setShowPopup(true);
+    setShowFinalPopup(true);
     onVideoEnd();
   };
 
@@ -96,9 +96,9 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
                 <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
                   <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
                 </div>
-                <p className="text-lg">Video di Test - Simulazione</p>
+                <p className="text-lg">Video Esclusivo - Simulazione</p>
                 <p className="text-sm text-white/80">
-                  Clicca play e il popup apparirà dopo 3 secondi
+                  Clicca play per vedere il contenuto finale
                 </p>
               </div>
             </div>
@@ -116,25 +116,25 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
 
         {/* Timer Section */}
         {showTimer && timeLeft > 0 && (
-          <div className="text-center bg-gradient-to-r from-yellow-400/10 to-orange-400/10 border border-yellow-400/30 rounded-xl p-6 animate-fade-in">
+          <div className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-6 animate-fade-in">
             <div className="flex items-center justify-center space-x-2 mb-3">
-              <Timer className="w-5 h-5 text-yellow-400 animate-pulse" />
-              <span className="text-yellow-400 font-semibold text-lg">
+              <Timer className="w-5 h-5 text-red-400 animate-pulse" />
+              <span className="text-red-400 font-semibold text-lg">
                 {timeLeft}
               </span>
             </div>
             <p className="text-white/90 text-sm leading-relaxed">
-              🔓 <span className="font-semibold text-yellow-400">Accesso Esclusivo</span> alle selezioni si sbloccherà tra<br />
-              <span className="text-white/70">Resta fino alla fine per scoprire come entrare nella community</span>
+              🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra<br />
+              <span className="text-white/70">Questo è l'ultimo step prima dell'opportunità esclusiva</span>
             </p>
           </div>
         )}
       </div>
 
-      {/* Video End Popup */}
-      {showPopup && <VideoEndPopup />}
+      {/* Final Popup */}
+      {showFinalPopup && <FinalPopup />}
     </>
   );
 };
 
-export default VideoPlayer;
+export default SecondVideoPlayer;
