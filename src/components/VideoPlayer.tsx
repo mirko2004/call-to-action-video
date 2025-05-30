@@ -1,5 +1,5 @@
 
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Play, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import VideoEndPopup from "./VideoEndPopup";
@@ -9,18 +9,16 @@ interface VideoPlayerProps {
 }
 
 const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(3);
-  const [showTimer, setShowTimer] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(3); // Durata simulata del video
+  const [videoDuration] = useState(3); // Durata simulata
   const [currentTime, setCurrentTime] = useState(0);
 
-  // Timer per la durata del video durante la riproduzione
+  // Timer per la durata del video
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
@@ -43,71 +41,20 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
     return () => clearInterval(interval);
   }, [isPlaying, videoEnded, videoDuration, onVideoEnd]);
 
-  // Timer per il countdown dopo il video (rimosso perché ora il pulsante appare subito)
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (showTimer && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            setShowTimer(false);
-            setShowButton(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    
-    return () => clearInterval(interval);
-  }, [showTimer, timeLeft]);
-
   const handlePlayClick = () => {
-    const video = videoRef.current;
-    if (video) {
-      video.play().catch((error) => {
-        console.log("Play was prevented:", error);
-      });
-      setIsPlaying(true);
-      setHasStarted(true);
-      setCurrentTime(0);
-      
-      console.log("Video simulato iniziato - durata:", videoDuration, "secondi");
-    }
-  };
-
-  const handleVideoEnd = () => {
-    if (!videoEnded) {
-      setIsPlaying(false);
-      setVideoEnded(true);
-      setShowButton(true);
-      onVideoEnd();
-    }
-  };
-
-  const handleVideoPause = () => {
-    setIsPlaying(false);
-  };
-
-  const handleVideoPlay = () => {
     setIsPlaying(true);
+    setHasStarted(true);
+    setCurrentTime(0);
+    setVideoEnded(false);
   };
 
   const handleButtonClick = () => {
     setShowPopup(true);
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
     <>
       <div className="relative w-full max-w-2xl mx-auto space-y-6">
-        {/* Instructional text above video */}
         <div className="text-center">
           <p className="text-white/70 text-sm">
             📺 Guarda tutto il video per sbloccare il pulsante e continuare
@@ -115,58 +62,44 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
         </div>
 
         <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative">
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            controls={hasStarted}
-            muted
-            playsInline
-            preload="metadata"
-            onEnded={handleVideoEnd}
-            onPause={handleVideoPause}
-            onPlay={handleVideoPlay}
-            controlsList="nodownload nofullscreen noremoteplayback"
-            disablePictureInPicture
-            style={{
-              WebkitAppearance: 'none'
-            }}
-          >
-            <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
-  <iframe 
-    src="https://player.vimeo.com/video/898897743?badge=0&autopause=0&player_id=0&app_id=58479" 
-    frameBorder="0" 
-    allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" 
-    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} 
-    title="Presentazione nuovo progetto">
-  </iframe>
-</div>
-<script src="https://player.vimeo.com/api/player.js"></script>
-</div>
-<source src="<div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/898897743?badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Presentazione nuovo progetto"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>" type="video/vimeo" />
-            <div className="flex items-center justify-center h-full text-white">
+          {!hasStarted ? (
+            <div className="w-full h-full flex items-center justify-center bg-black/50">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
                   <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
                 </div>
-                <p className="text-lg">Video di Test - Simulazione</p>
+                <p className="text-lg text-white">Video di Test - Simulazione</p>
                 <p className="text-sm text-white/80">
                   Clicca play e il pulsante apparirà dopo 3 secondi
                 </p>
               </div>
-            </div>
-          </video>
-          
-          {/* Custom Play Button Overlay */}
-          {!hasStarted && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer" onClick={handlePlayClick}>
-              <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
+              
+              <div 
+                className="absolute inset-0 flex items-center justify-center cursor-pointer" 
+                onClick={handlePlayClick}
+              >
+                <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                  <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
+                </div>
               </div>
+            </div>
+          ) : (
+            <div className="w-full h-full">
+              <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
+                <iframe
+                  src="https://player.vimeo.com/video/898897743?autoplay=1&badge=0&autopause=0&player_id=0&app_id=58479"
+                  frameBorder="0"
+                  allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                  title="Presentazione nuovo progetto"
+                  allowFullScreen
+                ></iframe>
+              </div>
+              <script src="https://player.vimeo.com/api/player.js"></script>
             </div>
           )}
         </div>
 
-        {/* Video Duration Timer (shown during video playback) */}
         {isPlaying && !videoEnded && (
           <div className="text-center bg-gradient-to-r from-blue-400/10 to-purple-400/10 border border-blue-400/30 rounded-xl p-4 animate-fade-in">
             <div className="flex items-center justify-center space-x-2 mb-2">
@@ -181,7 +114,6 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
           </div>
         )}
 
-        {/* Button Section */}
         {showButton && (
           <div className="text-center bg-gradient-to-r from-yellow-400/10 to-orange-400/10 border border-yellow-400/30 rounded-xl p-6 animate-fade-in">
             <p className="text-white/90 text-sm mb-4 leading-relaxed">
@@ -200,7 +132,6 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
         )}
       </div>
 
-      {/* Video End Popup */}
       {showPopup && <VideoEndPopup />}
     </>
   );
