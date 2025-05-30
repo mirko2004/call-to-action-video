@@ -1,12 +1,39 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Componente VideoEndPopup (ripristinato)
+const VideoEndPopup = ({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) => (
+  <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+    <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center">
+      <h2 className="text-2xl font-bold mb-4 text-yellow-400">Contenuto Sbloccato!</h2>
+      <p className="mb-6 text-gray-300">
+        Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online"
+      </p>
+      <div className="flex flex-col gap-3">
+        <Button 
+          onClick={onContinue}
+          className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+        >
+          🎥 Accedi al Contenuto Esclusivo
+        </Button>
+        <Button 
+          onClick={onClose}
+          variant="outline"
+          className="text-white border-gray-600 hover:bg-gray-800"
+        >
+          Chiudi
+        </Button>
+      </div>
+    </div>
+  </div>
+);
 
 const VideoPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showButton, setShowButton] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -116,6 +143,10 @@ const VideoPlayer = () => {
   };
 
   const handleButtonClick = () => {
+    setShowPopup(true);
+  };
+
+  const handleContinue = () => {
     // Naviga alla seconda pagina
     window.location.href = "/step2";
   };
@@ -294,6 +325,14 @@ const VideoPlayer = () => {
           )}
         </div>
       </div>
+
+      {/* Popup di fine video (ripristinato) */}
+      {showPopup && (
+        <VideoEndPopup 
+          onClose={() => setShowPopup(false)} 
+          onContinue={handleContinue}
+        />
+      )}
     </div>
   );
 };
