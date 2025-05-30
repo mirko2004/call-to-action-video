@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Componente VideoEndPopup
 const VideoEndPopup = ({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) => (
   <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
     <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center">
@@ -38,12 +37,15 @@ const VideoPlayer = () => {
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
-  const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
   const playerInitializedRef = useRef(false);
+  const previousVolumeRef = useRef(0.7);
+
+  // Stato derivato per il muto
+  const isMuted = volume === 0;
 
   // Carica lo script Vimeo API
   useEffect(() => {
@@ -57,7 +59,7 @@ const VideoPlayer = () => {
     };
   }, []);
 
-  // Inizializza il player Vimeo (solo una volta)
+  // Inizializza il player Vimeo una sola volta
   useEffect(() => {
     if (!hasStarted || playerInitializedRef.current) return;
     
@@ -72,67 +74,52 @@ const VideoPlayer = () => {
         playerRef.current.getDuration().then((duration: number) => {
           setVideoDuration(Math.floor(duration));
         }).catch(() => {});
+        
+        // Imposta il volume iniziale
+        playerRef.current.setVolume(volume).catch(() => {});
+        
+        // Gestisci gli eventi
+        const handlePlay = () => {
+          setIsPlaying(true);
+          setShowControls(true);
+          startControlsTimer();
+        };
+        
+        const handlePause = () => {
+          setIsPlaying(false);
+          setShowControls(true);
+          clearControlsTimer();
+        };
+        
+        const handleEnd = () => {
+          setVideoEnded(true);
+          setShowButton(true);
+          setIsPlaying(false);
+        };
+        
+        const handleTimeUpdate = (data: any) => {
+          setCurrentTime(Math.floor(data.seconds));
+        };
+        
+        playerRef.current.on('play', handlePlay);
+        playerRef.current.on('pause', handlePause);
+        playerRef.current.on('ended', handleEnd);
+        playerRef.current.on('timeupdate', handleTimeUpdate);
       }
     }, 500);
     
     return () => clearTimeout(timer);
   }, [hasStarted]);
 
-  // Configura gli eventi del player dopo l'inizializzazione
+  // Gestione separata del volume
   useEffect(() => {
-    if (!playerRef.current) return;
-    
-    const player = playerRef.current;
-    
-    // Imposta il volume iniziale
-    player.setVolume(volume).catch(() => {});
-    
-    // Gestisci gli eventi
-    const handlePlay = () => {
-      setIsPlaying(true);
-      setShowControls(true);
-      startControlsTimer();
-    };
-    
-    const handlePause = () => {
-      setIsPlaying(false);
-      setShowControls(true);
-      clearControlsTimer();
-    };
-    
-    const handleEnd = () => {
-      setVideoEnded(true);
-      setShowButton(true);
-      setIsPlaying(false);
-    };
-    
-    const handleTimeUpdate = (data: any) => {
-      setCurrentTime(Math.floor(data.seconds));
-    };
-    
-    player.on('play', handlePlay);
-    player.on('pause', handlePause);
-    player.on('ended', handleEnd);
-    player.on('timeupdate', handleTimeUpdate);
-    
-    return () => {
-      player.off('play', handlePlay);
-      player.off('pause', handlePause);
-      player.off('ended', handleEnd);
-      player.off('timeupdate', handleTimeUpdate);
-    };
-  }, []);
-
-  // Gestione del volume separata
-  useEffect(() => {
-    if (!playerRef.current) return;
+    if (!playerRef.current || !playerInitializedRef.current) return;
     
     playerRef.current.setVolume(volume).catch(() => {});
-    setIsMuted(volume === 0);
   }, [volume]);
 
   // Timer per nascondere i controlli
-  const startControlsTimer = () => {
+  const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
     }
@@ -142,14 +129,14 @@ const VideoPlayer = () => {
         setShowControls(false);
       }
     }, 3000);
-  };
+  }, [isPlaying]);
 
-  const clearControlsTimer = () => {
+  const clearControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
       controlsTimeout.current = null;
     }
-  };
+  }, []);
 
   // Gestisci il movimento del mouse per mostrare i controlli
   useEffect(() => {
@@ -164,7 +151,7 @@ const VideoPlayer = () => {
     
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isPlaying, hasStarted]);
+  }, [isPlaying, hasStarted, startControlsTimer]);
 
   const handlePlayClick = () => {
     setHasStarted(true);
@@ -191,8 +178,14 @@ const VideoPlayer = () => {
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
-    setVolume(isMuted ? 0.7 : 0);
+    if (volume > 0) {
+      // Salva il volume corrente prima di disattivare l'audio
+      previousVolumeRef.current = volume;
+      setVolume(0);
+    } else {
+      // Ripristina il volume precedente
+      setVolume(previousVolumeRef.current);
+    }
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
