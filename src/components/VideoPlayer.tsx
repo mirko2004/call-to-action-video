@@ -131,7 +131,18 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
               WebkitAppearance: 'none'
             }}
           >
-            <source src="<div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/898897743?badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Presentazione nuovo progetto"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>" type="video/vimeo" />
+            <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
+  <iframe 
+    src="https://player.vimeo.com/video/898897743?badge=0&autopause=0&player_id=0&app_id=58479" 
+    frameBorder="0" 
+    allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" 
+    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} 
+    title="Presentazione nuovo progetto">
+  </iframe>
+</div>
+<script src="https://player.vimeo.com/api/player.js"></script>
+</div>
+<source src="<div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/898897743?badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Presentazione nuovo progetto"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>" type="video/vimeo" />
             <div className="flex items-center justify-center h-full text-white">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
