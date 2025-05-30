@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from "react";
-import { Play, Timer } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import VideoEndPopup from "./VideoEndPopup";
 
@@ -14,43 +14,16 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   const [showButton, setShowButton] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
-  const [videoDuration] = useState(3); // Durata simulata
+  const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [volume, setVolume] = useState(0.7);
+  const [isMuted, setIsMuted] = useState(false);
   const playerRef = useRef<any>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Timer per la durata del video
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isPlaying && !videoEnded) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          const newTime = prev + 1;
-          if (newTime >= videoDuration) {
-            setVideoEnded(true);
-            setShowButton(true);
-            onVideoEnd();
-            return videoDuration;
-          }
-          return newTime;
-        });
-      }, 1000);
-    }
-    
-    return () => clearInterval(interval);
-  }, [isPlaying, videoEnded, videoDuration, onVideoEnd]);
-
-  const handlePlayClick = () => {
-    setHasStarted(true);
-    setIsPlaying(true);
-    setVideoEnded(false);
-  };
-
-  const handleButtonClick = () => {
-    setShowPopup(true);
-  };
-
-  // Carica lo script Vimeo API quando il componente viene montato
+  // Carica lo script Vimeo API
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://player.vimeo.com/api/player.js';
@@ -62,7 +35,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
     };
   }, []);
 
-  // Inizializza il player Vimeo quando l'iframe è pronto
+  // Inizializza il player Vimeo
   useEffect(() => {
     if (!hasStarted) return;
     
@@ -72,23 +45,120 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
         // @ts-ignore
         playerRef.current = new Vimeo.Player(iframe);
         
-        // Aggiungi listener per gli eventi
+        // Imposta il volume iniziale
+        playerRef.current.setVolume(volume);
+        
+        // Ottieni la durata del video
+        playerRef.current.getDuration().then((duration: number) => {
+          setVideoDuration(Math.floor(duration));
+        });
+        
+        // Gestisci gli eventi
+        playerRef.current.on('play', () => {
+          setIsPlaying(true);
+          setShowControls(true);
+          startControlsTimer();
+        });
+        
+        playerRef.current.on('pause', () => {
+          setIsPlaying(false);
+          setShowControls(true);
+          clearControlsTimer();
+        });
+        
         playerRef.current.on('ended', () => {
           setVideoEnded(true);
           setShowButton(true);
           onVideoEnd();
           setIsPlaying(false);
         });
+        
+        playerRef.current.on('timeupdate', (data: any) => {
+          setCurrentTime(Math.floor(data.seconds));
+        });
       }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [hasStarted, onVideoEnd]);
+  }, [hasStarted, onEnded, volume]);
+
+  // Timer per nascondere i controlli
+  const startControlsTimer = () => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+    }
+    
+    controlsTimeout.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  const clearControlsTimer = () => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+      controlsTimeout.current = null;
+    }
+  };
+
+  // Gestisci il movimento del mouse per mostrare i controlli
+  useEffect(() => {
+    const handleMouseMove = () => {
+      if (isPlaying && hasStarted) {
+        setShowControls(true);
+        startControlsTimer();
+      }
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isPlaying, hasStarted]);
+
+  const handlePlayClick = () => {
+    setHasStarted(true);
+    setIsPlaying(true);
+    setVideoEnded(false);
+  };
+
+  const handleButtonClick = () => {
+    setShowPopup(true);
+  };
+
+  const togglePlayPause = () => {
+    if (playerRef.current) {
+      if (isPlaying) {
+        playerRef.current.pause();
+      } else {
+        playerRef.current.play();
+      }
+    }
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    if (playerRef.current) {
+      playerRef.current.setVolume(isMuted ? volume : 0);
+    }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    
+    if (playerRef.current) {
+      playerRef.current.setVolume(newVolume);
+      setIsMuted(newVolume === 0);
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const calculateProgress = () => {
+    if (videoDuration === 0) return 0;
+    return (currentTime / videoDuration) * 100;
   };
 
   return (
@@ -100,19 +170,9 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
           </p>
         </div>
 
-        <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative">
+        <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group">
           {!hasStarted ? (
             <div className="w-full h-full flex items-center justify-center bg-black/50">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
-                  <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
-                </div>
-                <p className="text-lg text-white">Video Esclusivo</p>
-                <p className="text-sm text-white/80">
-                  Clicca play per visualizzare il contenuto
-                </p>
-              </div>
-              
               <div 
                 className="absolute inset-0 flex items-center justify-center cursor-pointer" 
                 onClick={handlePlayClick}
@@ -127,7 +187,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
               <div className="absolute inset-0">
                 <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
                   <iframe
-                    src="https://player.vimeo.com/video/898897743?autoplay=1&background=1&muted=1&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0"
+                    src={`https://player.vimeo.com/video/898897743?autoplay=1&background=1&loop=0&autopause=0&muted=${isMuted ? 1 : 0}&controls=0&title=0&byline=0&portrait=0&badge=0`}
                     frameBorder="0"
                     allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
                     style={{ 
@@ -150,6 +210,60 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
                 className="absolute inset-0 z-10"
                 onContextMenu={(e) => e.preventDefault()}
               />
+              
+              {/* Barra di progresso */}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 z-20">
+                <div 
+                  className="h-full bg-yellow-500 transition-all duration-200"
+                  style={{ width: `${calculateProgress()}%` }}
+                ></div>
+              </div>
+              
+              {/* Controlli video personalizzati */}
+              {(showControls || !isPlaying) && (
+                <div 
+                  ref={controlsRef}
+                  className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+                >
+                  <div className="flex items-center space-x-4">
+                    <button 
+                      onClick={togglePlayPause}
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-6 h-6" />
+                      ) : (
+                        <Play className="w-6 h-6" />
+                      )}
+                    </button>
+                    
+                    <button 
+                      onClick={toggleMute}
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      {isMuted ? (
+                        <VolumeX className="w-5 h-5" />
+                      ) : (
+                        <Volume2 className="w-5 h-5" />
+                      )}
+                    </button>
+                    
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      className="w-24 accent-yellow-500"
+                    />
+                    
+                    <div className="text-white text-sm">
+                      {formatTime(currentTime)} / {formatTime(videoDuration)}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -159,7 +273,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-blue-400" />
               <span className="text-blue-400 font-semibold text-lg">
-                {videoDuration - currentTime} secondi rimanenti
+                {formatTime(videoDuration - currentTime)} rimanenti
               </span>
             </div>
             <p className="text-white/90 text-sm">
