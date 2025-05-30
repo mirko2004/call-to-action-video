@@ -55,20 +55,31 @@ const FinalPopup = () => {
   if (isExpired) {
     return (
       <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
-        <div className="bg-gradient-to-br from-red-900 to-black border border-red-500 rounded-2xl p-8 max-w-md mx-4 text-center space-y-6">
-          <Lock className="w-16 h-16 mx-auto text-red-400" />
+        <div className="bg-gradient-to-br from-purple-900 to-black border border-purple-500 rounded-2xl p-8 max-w-md mx-4 text-center space-y-6">
+          <div className="text-purple-400 text-4xl mb-4">📱</div>
           
-          <h3 className="text-2xl font-bold text-red-400">
-            Opportunità Scaduta
+          <h3 className="text-2xl font-bold text-purple-400">
+            Tempo Scaduto
           </h3>
           
-          <p className="text-white/80">
-            Il tempo per accedere alle selezioni è scaduto. Questa opportunità non sarà più disponibile per il tuo IP per i prossimi 10 minuti.
+          <p className="text-white/80 leading-relaxed">
+            Purtroppo il tempo per accedere alle selezioni è scaduto.
           </p>
           
-          <p className="text-red-400 text-sm">
-            IP: {userIP}
-          </p>
+          <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50 rounded-xl p-4">
+            <p className="text-purple-400 font-semibold text-sm mb-2">
+              🎯 VUOI UNA SECONDA POSSIBILITÀ?
+            </p>
+            <p className="text-white/90 text-sm mb-3">
+              Scrivimi su Instagram in DM:
+            </p>
+            <p className="text-yellow-400 font-bold text-lg mb-2">
+              "SECONDA POSSIBILITÀ"
+            </p>
+            <p className="text-white/80 text-xs">
+              Fai una breve presentazione di te per farmi capire che hai veramente voglia di scoprire di più questo mondo.
+            </p>
+          </div>
         </div>
       </div>
     );

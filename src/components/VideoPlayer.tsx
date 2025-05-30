@@ -16,6 +16,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   const [showTimer, setShowTimer] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -44,13 +45,13 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
       });
       setIsPlaying(true);
       setHasStarted(true);
-      setShowTimer(true);
       
       // SIMULAZIONE: Simula la fine del video dopo 3 secondi
       console.log("Video simulato iniziato - terminerà in 3 secondi");
       setTimeout(() => {
         console.log("Simulazione video terminato - mostro timer");
         setIsPlaying(false);
+        setVideoEnded(true);
         setShowTimer(true);
         setTimeLeft(3);
         onVideoEnd();
@@ -59,10 +60,13 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   };
 
   const handleVideoEnd = () => {
-    setIsPlaying(false);
-    setShowTimer(true);
-    setTimeLeft(3);
-    onVideoEnd();
+    if (!videoEnded) {
+      setIsPlaying(false);
+      setVideoEnded(true);
+      setShowTimer(true);
+      setTimeLeft(3);
+      onVideoEnd();
+    }
   };
 
   const handleVideoPause = () => {

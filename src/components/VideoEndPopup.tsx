@@ -16,11 +16,11 @@ const VideoEndPopup = () => {
         <div className="text-yellow-400 text-4xl mb-4">🎯</div>
         
         <h3 className="text-2xl font-bold text-white mb-4">
-          Congratulazioni!
+          Perfetto!
         </h3>
         
         <p className="text-white/90 leading-relaxed">
-          Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online".
+          Sei pronto per il contenuto più importante. Quello che stai per vedere ti aprirà gli occhi su una realtà completamente diversa.
         </p>
         
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">

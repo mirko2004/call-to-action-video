@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import VideoPlayer from "@/components/VideoPlayer";
-import CallToActionButton from "@/components/CallToActionButton";
 
 const Index = () => {
   const [videoEnded, setVideoEnded] = useState(false);
@@ -42,12 +41,6 @@ const Index = () => {
             {/* Video Column */}
             <div className="lg:col-span-2 space-y-6">
               <VideoPlayer onVideoEnd={handleVideoEnd} />
-              
-              {videoEnded && (
-                <div className="animate-fade-in">
-                  <CallToActionButton />
-                </div>
-              )}
             </div>
 
             {/* Side Content */}
