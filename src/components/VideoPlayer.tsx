@@ -1,6 +1,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { Play, Timer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import VideoEndPopup from "./VideoEndPopup";
 
 interface VideoPlayerProps {
@@ -13,6 +14,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   const [hasStarted, setHasStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(3);
   const [showTimer, setShowTimer] = useState(false);
+  const [showButton, setShowButton] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
@@ -23,6 +25,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             setShowTimer(false);
+            setShowButton(true);
             return 0;
           }
           return prev - 1;
@@ -46,10 +49,10 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
       // SIMULAZIONE: Simula la fine del video dopo 3 secondi
       console.log("Video simulato iniziato - terminerà in 3 secondi");
       setTimeout(() => {
-        console.log("Simulazione video terminato - mostro popup");
+        console.log("Simulazione video terminato - mostro timer");
         setIsPlaying(false);
-        setShowTimer(false);
-        setShowPopup(true);
+        setShowTimer(true);
+        setTimeLeft(3);
         onVideoEnd();
       }, 3000);
     }
@@ -57,8 +60,8 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
 
   const handleVideoEnd = () => {
     setIsPlaying(false);
-    setShowTimer(false);
-    setShowPopup(true);
+    setShowTimer(true);
+    setTimeLeft(3);
     onVideoEnd();
   };
 
@@ -68,6 +71,10 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
 
   const handleVideoPlay = () => {
     setIsPlaying(true);
+  };
+
+  const handleButtonClick = () => {
+    setShowPopup(true);
   };
 
   return (
@@ -98,7 +105,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
                 </div>
                 <p className="text-lg">Video di Test - Simulazione</p>
                 <p className="text-sm text-white/80">
-                  Clicca play e il popup apparirà dopo 3 secondi
+                  Clicca play e il pulsante apparirà dopo 3 secondi
                 </p>
               </div>
             </div>
@@ -127,6 +134,24 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
               🔓 <span className="font-semibold text-yellow-400">Accesso Esclusivo</span> alle selezioni si sbloccherà tra<br />
               <span className="text-white/70">Resta fino alla fine per scoprire come entrare nella community</span>
             </p>
+          </div>
+        )}
+
+        {/* Button Section */}
+        {showButton && (
+          <div className="text-center bg-gradient-to-r from-yellow-400/10 to-orange-400/10 border border-yellow-400/30 rounded-xl p-6 animate-fade-in">
+            <p className="text-white/90 text-sm mb-4 leading-relaxed">
+              🎯 <span className="font-semibold text-yellow-400">Congratulazioni!</span><br />
+              <span className="text-white/70">Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online".</span>
+            </p>
+            
+            <Button
+              onClick={handleButtonClick}
+              size="lg"
+              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              🎥 Accedi al Contenuto Esclusivo
+            </Button>
           </div>
         )}
       </div>

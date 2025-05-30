@@ -20,8 +20,17 @@ const VideoEndPopup = () => {
         </h3>
         
         <p className="text-white/90 leading-relaxed">
-          Hai completato il primo step. Ora scoprirai i dettagli esclusivi che cambieranno la tua prospettiva.
+          Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online".
         </p>
+        
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
+          <p className="text-red-400 font-semibold text-sm mb-2">
+            🎧 ATTENZIONE MASSIMA RICHIESTA
+          </p>
+          <p className="text-white/90 text-sm">
+            Per il prossimo video è fondamentale che tu sia concentrato al 100%. Metti le cuffie e assicurati di non avere distrazioni.
+          </p>
+        </div>
         
         <p className="text-yellow-400 font-semibold">
           Preparati per il contenuto più importante...
@@ -32,7 +41,7 @@ const VideoEndPopup = () => {
           size="lg"
           className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full"
         >
-          Continua al Contenuto Esclusivo
+          🎥 Vai al Video Esclusivo
         </Button>
       </div>
     </div>
