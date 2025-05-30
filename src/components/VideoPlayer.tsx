@@ -131,7 +131,7 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
               WebkitAppearance: 'none'
             }}
           >
-            <source src="/placeholder-video.mp4" type="video/mp4" />
+            <source src="https://vimeo.com/manage/videos/898897743" type="video/vimeo" />
             <div className="flex items-center justify-center h-full text-white">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
