@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Play, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import VideoEndPopup from "./VideoEndPopup";
@@ -11,12 +11,12 @@ interface VideoPlayerProps {
 const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(3);
   const [showButton, setShowButton] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const [videoDuration] = useState(3); // Durata simulata
   const [currentTime, setCurrentTime] = useState(0);
+  const playerRef = useRef<any>(null);
 
   // Timer per la durata del video
   useEffect(() => {
@@ -27,7 +27,6 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
         setCurrentTime(prev => {
           const newTime = prev + 1;
           if (newTime >= videoDuration) {
-            setIsPlaying(false);
             setVideoEnded(true);
             setShowButton(true);
             onVideoEnd();
@@ -42,14 +41,54 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
   }, [isPlaying, videoEnded, videoDuration, onVideoEnd]);
 
   const handlePlayClick = () => {
-    setIsPlaying(true);
     setHasStarted(true);
-    setCurrentTime(0);
+    setIsPlaying(true);
     setVideoEnded(false);
   };
 
   const handleButtonClick = () => {
     setShowPopup(true);
+  };
+
+  // Carica lo script Vimeo API quando il componente viene montato
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://player.vimeo.com/api/player.js';
+    script.async = true;
+    document.body.appendChild(script);
+    
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  // Inizializza il player Vimeo quando l'iframe è pronto
+  useEffect(() => {
+    if (!hasStarted) return;
+    
+    const timer = setTimeout(() => {
+      const iframe = document.querySelector('iframe');
+      if (iframe) {
+        // @ts-ignore
+        playerRef.current = new Vimeo.Player(iframe);
+        
+        // Aggiungi listener per gli eventi
+        playerRef.current.on('ended', () => {
+          setVideoEnded(true);
+          setShowButton(true);
+          onVideoEnd();
+          setIsPlaying(false);
+        });
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [hasStarted, onVideoEnd]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -68,9 +107,9 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
                 <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
                   <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
                 </div>
-                <p className="text-lg text-white">Video di Test - Simulazione</p>
+                <p className="text-lg text-white">Video Esclusivo</p>
                 <p className="text-sm text-white/80">
-                  Clicca play e il pulsante apparirà dopo 3 secondi
+                  Clicca play per visualizzare il contenuto
                 </p>
               </div>
               
@@ -84,18 +123,33 @@ const VideoPlayer = ({ onVideoEnd }: VideoPlayerProps) => {
               </div>
             </div>
           ) : (
-            <div className="w-full h-full">
-              <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
-                <iframe
-                  src="https://player.vimeo.com/video/898897743?autoplay=1&badge=0&autopause=0&player_id=0&app_id=58479"
-                  frameBorder="0"
-                  allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-                  title="Presentazione nuovo progetto"
-                  allowFullScreen
-                ></iframe>
+            <div className="w-full h-full relative">
+              <div className="absolute inset-0">
+                <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
+                  <iframe
+                    src="https://player.vimeo.com/video/898897743?autoplay=1&background=1&muted=1&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0"
+                    frameBorder="0"
+                    allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+                    style={{ 
+                      position: 'absolute', 
+                      top: 0, 
+                      left: 0, 
+                      width: '100%', 
+                      height: '100%',
+                      borderRadius: '0.75rem',
+                      overflow: 'hidden'
+                    }}
+                    title="Video Esclusivo"
+                    allowFullScreen
+                  ></iframe>
+                </div>
               </div>
-              <script src="https://player.vimeo.com/api/player.js"></script>
+              
+              {/* Overlay per prevenire il click destro */}
+              <div 
+                className="absolute inset-0 z-10"
+                onContextMenu={(e) => e.preventDefault()}
+              />
             </div>
           )}
         </div>
