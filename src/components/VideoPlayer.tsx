@@ -3,13 +3,13 @@ import { useState, useEffect, useRef } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Componente VideoEndPopup per completare la struttura
+// Componente VideoEndPopup
 const VideoEndPopup = () => (
   <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
-    <div className="bg-white p-8 rounded-xl max-w-md text-center">
-      <h2 className="text-2xl font-bold mb-4">Contenuto Sbloccato!</h2>
-      <p className="mb-6">Complimenti, hai completato il video. Ora puoi accedere al contenuto esclusivo.</p>
-      <Button className="bg-green-500 hover:bg-green-600 text-white">
+    <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 p-8 rounded-xl max-w-md text-center">
+      <h2 className="text-2xl font-bold mb-4 text-yellow-400">Contenuto Sbloccato!</h2>
+      <p className="mb-6 text-gray-300">Complimenti, hai completato il video. Ora puoi accedere al contenuto esclusivo.</p>
+      <Button className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-6 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
         Accedi Ora
       </Button>
     </div>
@@ -69,6 +69,7 @@ const VideoPlayer = () => {
         
         playerRef.current.on('pause', () => {
           setIsPlaying(false);
+          // Mantieni i controlli visibili durante la pausa
           setShowControls(true);
           clearControlsTimer();
         });
@@ -95,7 +96,10 @@ const VideoPlayer = () => {
     }
     
     controlsTimeout.current = setTimeout(() => {
-      setShowControls(false);
+      // Nascondi i controlli solo se il video è in riproduzione
+      if (isPlaying) {
+        setShowControls(false);
+      }
     }, 3000);
   };
 
@@ -109,9 +113,11 @@ const VideoPlayer = () => {
   // Gestisci il movimento del mouse per mostrare i controlli
   useEffect(() => {
     const handleMouseMove = () => {
-      if (isPlaying && hasStarted) {
+      if (hasStarted) {
         setShowControls(true);
-        startControlsTimer();
+        if (isPlaying) {
+          startControlsTimer();
+        }
       }
     };
     
@@ -269,10 +275,6 @@ const VideoPlayer = () => {
                         onChange={handleVolumeChange}
                         className="w-24 accent-yellow-500"
                       />
-                      
-                      <div className="text-white text-sm">
-                        {formatTime(currentTime)} / {formatTime(videoDuration)}
-                      </div>
                     </div>
                   </div>
                 )}
@@ -285,7 +287,7 @@ const VideoPlayer = () => {
               <div className="flex items-center justify-center space-x-2 mb-2">
                 <Timer className="w-5 h-5 text-blue-400" />
                 <span className="text-blue-400 font-semibold text-lg">
-                  {formatTime(videoDuration - currentTime)} rimanenti
+                  {videoDuration - currentTime} secondi rimanenti
                 </span>
               </div>
               <p className="text-white/90 text-sm">
@@ -310,32 +312,6 @@ const VideoPlayer = () => {
               </Button>
             </div>
           )}
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700">
-            <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
-              <Play className="w-5 h-5 text-blue-400" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Contenuti Premium</h3>
-            <p className="text-slate-400">Accesso a video esclusivi non disponibili altrove</p>
-          </div>
-          
-          <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700">
-            <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center mb-4">
-              <Volume2 className="w-5 h-5 text-green-400" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Audio di Qualità</h3>
-            <p className="text-slate-400">Regola l'audio come preferisci per la migliore esperienza</p>
-          </div>
-          
-          <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700">
-            <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
-              <Timer className="w-5 h-5 text-purple-400" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Progressione</h3>
-            <p className="text-slate-400">Visualizza il tuo avanzamento in tempo reale</p>
-          </div>
         </div>
       </div>
 
