@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,9 +6,9 @@ import { Button } from "@/components/ui/button";
 const VideoEndPopup = ({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) => (
   <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
     <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center">
-      <h2 className="text-2xl font-bold mb-4 text-yellow-400">Contenuto Sbloccato!</h2>
+      <h2 className="text-2xl font-bold mb-4 text-yellow-400">Video Completato!</h2>
       <p className="mb-6 text-gray-300">
-        Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online"
+        Perfetto! Hai sbloccato l'accesso al contenuto più importante. Quello che stai per vedere cambierà completamente la tua prospettiva.
       </p>
       <div className="flex flex-col gap-3">
         <Button 
@@ -15,13 +16,6 @@ const VideoEndPopup = ({ onClose, onContinue }: { onClose: () => void; onContinu
           className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
         >
           🎥 Accedi al Contenuto Esclusivo
-        </Button>
-        <Button 
-          onClick={onClose}
-          variant="outline"
-          className="text-white border-gray-600 hover:bg-gray-800"
-        >
-          Chiudi
         </Button>
       </div>
     </div>
@@ -164,7 +158,7 @@ const VideoPlayer = () => {
   };
 
   const handleContinue = () => {
-    window.location.href = "/step2";
+    window.location.href = "/secondo-video";
   };
 
   const togglePlayPause = () => {
@@ -206,11 +200,18 @@ const VideoPlayer = () => {
             Contenuto Video Esclusivo
           </h1>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Guarda il video completo per sbloccare contenuti premium e accedere a risorse esclusive
+            Guarda tutto il video per sbloccare roba esclusiva che non trovi da nessun'altra parte 🔥
           </p>
         </header>
 
         <div className="relative w-full max-w-2xl mx-auto space-y-6">
+          {/* Testo sopra il video */}
+          <div className="text-center">
+            <p className="text-white/70 text-sm">
+              💡 Dopo aver guardato tutto il video apparirà il pulsante per continuare
+            </p>
+          </div>
+
           <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group">
             {!hasStarted ? (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
@@ -228,7 +229,6 @@ const VideoPlayer = () => {
               <div className="w-full h-full relative">
                 <div className="absolute inset-0">
                   <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
-                    {/* FIX CRITICO: Rimuovi il parametro muted dall'URL */}
                     <iframe
                       id="vimeo-player"
                       src={`https://player.vimeo.com/video/898897743?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0`}
