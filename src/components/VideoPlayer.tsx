@@ -1,14 +1,13 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Timer, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => (
   <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
     <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center">
-      <h2 className="text-2xl font-bold mb-4 text-yellow-400">Video Completato!</h2>
+      <h2 className="text-2xl font-bold mb-4 text-yellow-400">Perfetto! 🎯</h2>
       <p className="mb-6 text-gray-300">
-        Boom! Hai appena sbloccato il livello successivo. Quello che stai per vedere è roba che cambia il gioco completamente.
+        Hai completato il primo step! Ora ti mostro qualcosa che ti farà capire perché questo percorso è completamente diverso dal solito.
       </p>
       <div className="flex flex-col gap-3">
         <Button 
@@ -32,13 +31,62 @@ const VideoPlayer = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
+  const [accessTimeLeft, setAccessTimeLeft] = useState(0);
+  const [accessExpired, setAccessExpired] = useState(false);
+  const [userIP, setUserIP] = useState<string>("");
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
   const playerInitializedRef = useRef(false);
   const previousVolumeRef = useRef(0.7);
+  const accessTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isMuted = volume === 0;
+
+  // Simula il rilevamento dell'IP
+  useEffect(() => {
+    const simulatedIP = "192.168.1." + Math.floor(Math.random() * 255);
+    setUserIP(simulatedIP);
+    
+    // Controlla se questo IP è bloccato
+    const blockedUntil = localStorage.getItem(`video_blocked_${simulatedIP}`);
+    if (blockedUntil && new Date().getTime() < parseInt(blockedUntil)) {
+      setAccessExpired(true);
+    }
+  }, []);
+
+  // Timer per l'accesso al video (5 minuti quando appare il pulsante)
+  useEffect(() => {
+    if (showButton && !accessExpired && accessTimeLeft === 0) {
+      setAccessTimeLeft(300); // 5 minuti = 300 secondi
+    }
+  }, [showButton, accessExpired]);
+
+  useEffect(() => {
+    if (accessTimeLeft > 0) {
+      const timer = setTimeout(() => {
+        setAccessTimeLeft(prev => {
+          if (prev <= 1) {
+            // Tempo scaduto - blocca IP per 10 minuti
+            const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
+            localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
+            setAccessExpired(true);
+            setShowButton(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [accessTimeLeft, userIP]);
+
+  const formatAccessTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -157,7 +205,9 @@ const VideoPlayer = () => {
   };
 
   const handleButtonClick = () => {
-    setShowPopup(true);
+    if (!accessExpired) {
+      setShowPopup(true);
+    }
   };
 
   const handleContinue = () => {
@@ -197,6 +247,30 @@ const VideoPlayer = () => {
     return (currentTime / videoDuration) * 100;
   };
 
+  if (accessExpired) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-md mx-auto text-center space-y-6">
+          <div className="text-red-400 text-6xl mb-6">⏰</div>
+          <h2 className="text-3xl font-bold text-red-400 mb-4">
+            Tempo Scaduto
+          </h2>
+          <p className="text-white/80 leading-relaxed mb-6">
+            Il tempo per accedere al contenuto è scaduto. L'opportunità non è più disponibile.
+          </p>
+          <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4">
+            <p className="text-red-400 font-semibold text-sm mb-2">
+              💬 Vuoi una seconda possibilità?
+            </p>
+            <p className="text-white/90 text-sm">
+              Contattami direttamente per vedere se posso fare un'eccezione.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center">
       <div className="w-full max-w-4xl mx-auto">
@@ -205,7 +279,7 @@ const VideoPlayer = () => {
             Contenuto Video Esclusivo
           </h1>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Guarda il video completo per sbloccare contenuti premium e accedere a risorse esclusive 🔥
+            Guarda tutto per sbloccare roba esclusiva che cambia davvero le carte in tavola 🚀
           </p>
         </header>
 
@@ -322,8 +396,22 @@ const VideoPlayer = () => {
             </div>
           )}
 
-          {showButton && (
-            <div className="text-center bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-6 animate-fade-in">
+          {showButton && !accessExpired && (
+            <div className="text-center bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-6 animate-fade-in space-y-4">
+              {accessTimeLeft > 0 && (
+                <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-center space-x-2 mb-2">
+                    <Clock className="w-5 h-5 text-red-400 animate-pulse" />
+                    <span className="text-red-400 font-bold text-xl">
+                      {formatAccessTime(accessTimeLeft)}
+                    </span>
+                  </div>
+                  <p className="text-white/90 text-sm">
+                    ⚠️ Tempo rimasto per accedere al contenuto
+                  </p>
+                </div>
+              )}
+              
               <p className="text-white/90 text-sm mb-4 leading-relaxed">
                 🎯 <span className="font-semibold text-yellow-400">Congratulazioni!</span><br />
                 <span className="text-white/70">Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online"</span>

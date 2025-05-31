@@ -155,7 +155,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         {/* Testo sopra il video */}
         <div className="text-center">
           <p className="text-white/70 text-sm">
-            🎯 Questo è il contenuto finale - dopo aver guardato tutto si aprirà l'accesso alle selezioni
+            🎯 Questo è il contenuto finale - dopo aver guardato tutto il video si aprirà l'accesso alle selezioni
           </p>
         </div>
 
