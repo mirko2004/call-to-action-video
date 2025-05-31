@@ -3,19 +3,19 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const VideoEndPopup = ({ onClose, onContinue }: { onClose: () => void; onContinue: () => void }) => (
+const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => (
   <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
     <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center">
       <h2 className="text-2xl font-bold mb-4 text-yellow-400">Video Completato!</h2>
       <p className="mb-6 text-gray-300">
-        Perfetto! Hai sbloccato l'accesso al contenuto più importante. Quello che stai per vedere cambierà completamente la tua prospettiva.
+        Boom! Hai appena sbloccato il livello successivo. Quello che stai per vedere è roba che cambia il gioco completamente.
       </p>
       <div className="flex flex-col gap-3">
         <Button 
           onClick={onContinue}
           className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
         >
-          🎥 Accedi al Contenuto Esclusivo
+          🔥 Vai al Contenuto Esclusivo
         </Button>
       </div>
     </div>
@@ -38,10 +38,8 @@ const VideoPlayer = () => {
   const playerInitializedRef = useRef(false);
   const previousVolumeRef = useRef(0.7);
 
-  // Stato derivato per il muto
   const isMuted = volume === 0;
 
-  // Carica lo script Vimeo API
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://player.vimeo.com/api/player.js';
@@ -49,70 +47,76 @@ const VideoPlayer = () => {
     document.body.appendChild(script);
     
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
   }, []);
 
-  // Inizializza il player Vimeo una sola volta
   useEffect(() => {
     if (!hasStarted || playerInitializedRef.current) return;
     
     const timer = setTimeout(() => {
       const iframe = document.getElementById('vimeo-player');
-      if (iframe) {
-        // @ts-ignore
-        playerRef.current = new window.Vimeo.Player(iframe);
-        playerInitializedRef.current = true;
-        
-        // Ottieni la durata del video
-        playerRef.current.getDuration().then((duration: number) => {
-          setVideoDuration(Math.floor(duration));
-        }).catch(() => {});
-        
-        // Imposta il volume iniziale
-        playerRef.current.setVolume(volume).catch(() => {});
-        
-        // Gestisci gli eventi
-        const handlePlay = () => {
-          setIsPlaying(true);
-          setShowControls(true);
-          startControlsTimer();
-        };
-        
-        const handlePause = () => {
-          setIsPlaying(false);
-          setShowControls(true);
-          clearControlsTimer();
-        };
-        
-        const handleEnd = () => {
-          setVideoEnded(true);
-          setShowButton(true);
-          setIsPlaying(false);
-        };
-        
-        const handleTimeUpdate = (data: any) => {
-          setCurrentTime(Math.floor(data.seconds));
-        };
-        
-        playerRef.current.on('play', handlePlay);
-        playerRef.current.on('pause', handlePause);
-        playerRef.current.on('ended', handleEnd);
-        playerRef.current.on('timeupdate', handleTimeUpdate);
+      if (iframe && window.Vimeo) {
+        try {
+          // @ts-ignore
+          playerRef.current = new window.Vimeo.Player(iframe);
+          playerInitializedRef.current = true;
+          
+          playerRef.current.getDuration().then((duration: number) => {
+            setVideoDuration(Math.floor(duration));
+          }).catch((error: any) => {
+            console.log("Error getting duration:", error);
+          });
+          
+          playerRef.current.setVolume(volume).catch((error: any) => {
+            console.log("Error setting volume:", error);
+          });
+          
+          const handlePlay = () => {
+            setIsPlaying(true);
+            setShowControls(true);
+            startControlsTimer();
+          };
+          
+          const handlePause = () => {
+            setIsPlaying(false);
+            setShowControls(true);
+            clearControlsTimer();
+          };
+          
+          const handleEnd = () => {
+            setVideoEnded(true);
+            setShowButton(true);
+            setIsPlaying(false);
+          };
+          
+          const handleTimeUpdate = (data: any) => {
+            setCurrentTime(Math.floor(data.seconds));
+          };
+          
+          playerRef.current.on('play', handlePlay);
+          playerRef.current.on('pause', handlePause);
+          playerRef.current.on('ended', handleEnd);
+          playerRef.current.on('timeupdate', handleTimeUpdate);
+        } catch (error) {
+          console.log("Error initializing Vimeo player:", error);
+        }
       }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [hasStarted]);
+  }, [hasStarted, volume]);
 
-  // Gestione separata del volume
   useEffect(() => {
     if (!playerRef.current || !playerInitializedRef.current) return;
     
-    playerRef.current.setVolume(volume).catch(() => {});
+    playerRef.current.setVolume(volume).catch((error: any) => {
+      console.log("Error setting volume:", error);
+    });
   }, [volume]);
 
-  // Timer per nascondere i controlli
   const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
@@ -132,7 +136,6 @@ const VideoPlayer = () => {
     }
   }, []);
 
-  // Gestisci il movimento del mouse per mostrare i controlli
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
@@ -164,20 +167,22 @@ const VideoPlayer = () => {
   const togglePlayPause = () => {
     if (playerRef.current) {
       if (isPlaying) {
-        playerRef.current.pause();
+        playerRef.current.pause().catch((error: any) => {
+          console.log("Error pausing:", error);
+        });
       } else {
-        playerRef.current.play();
+        playerRef.current.play().catch((error: any) => {
+          console.log("Error playing:", error);
+        });
       }
     }
   };
 
   const toggleMute = () => {
     if (volume > 0) {
-      // Salva il volume corrente prima di disattivare l'audio
       previousVolumeRef.current = volume;
       setVolume(0);
     } else {
-      // Ripristina il volume precedente
       setVolume(previousVolumeRef.current);
     }
   };
@@ -200,12 +205,11 @@ const VideoPlayer = () => {
             Contenuto Video Esclusivo
           </h1>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Guarda tutto il video per sbloccare roba esclusiva che non trovi da nessun'altra parte 🔥
+            Guarda il video completo per sbloccare contenuti premium e accedere a risorse esclusive 🔥
           </p>
         </header>
 
         <div className="relative w-full max-w-2xl mx-auto space-y-6">
-          {/* Testo sopra il video */}
           <div className="text-center">
             <p className="text-white/70 text-sm">
               💡 Dopo aver guardato tutto il video apparirà il pulsante per continuare
@@ -249,13 +253,11 @@ const VideoPlayer = () => {
                   </div>
                 </div>
                 
-                {/* Overlay per prevenire il click destro */}
                 <div 
                   className="absolute inset-0 z-10"
                   onContextMenu={(e) => e.preventDefault()}
                 />
                 
-                {/* Barra di progresso */}
                 <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
                   <div 
                     className="h-full bg-yellow-500 transition-all duration-200"
@@ -263,7 +265,6 @@ const VideoPlayer = () => {
                   ></div>
                 </div>
                 
-                {/* Controlli video personalizzati */}
                 {(showControls || !isPlaying) && (
                   <div 
                     className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
@@ -307,13 +308,12 @@ const VideoPlayer = () => {
             )}
           </div>
 
-          {/* Timer rimane sempre visibile durante la riproduzione */}
-          {hasStarted && !videoEnded && (
+          {hasStarted && !videoEnded && videoDuration > 0 && (
             <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4">
               <div className="flex items-center justify-center space-x-2 mb-2">
                 <Timer className="w-5 h-5 text-blue-400" />
                 <span className="text-blue-400 font-semibold text-lg">
-                  {videoDuration - currentTime} secondi rimanenti
+                  {Math.max(0, videoDuration - currentTime)} secondi rimanenti
                 </span>
               </div>
               <p className="text-white/90 text-sm">
@@ -334,19 +334,15 @@ const VideoPlayer = () => {
                 size="lg"
                 className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
-                🎥 Accedi al Contenuto Esclusivo
+                🔥 Accedi al Contenuto Esclusivo
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Popup di fine video */}
       {showPopup && (
-        <VideoEndPopup 
-          onClose={() => setShowPopup(false)} 
-          onContinue={handleContinue}
-        />
+        <VideoEndPopup onContinue={handleContinue} />
       )}
     </div>
   );
