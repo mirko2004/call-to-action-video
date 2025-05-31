@@ -279,7 +279,7 @@ const VideoPlayer = () => {
             Contenuto Video Esclusivo
           </h1>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Guarda tutto per sbloccare roba esclusiva che cambia davvero le carte in tavola 🚀
+            Guarda attentamente per sbloccare quello che cambia tutto 🚀
           </p>
         </header>
 
@@ -413,8 +413,8 @@ const VideoPlayer = () => {
               )}
               
               <p className="text-white/90 text-sm mb-4 leading-relaxed">
-                🎯 <span className="font-semibold text-yellow-400">Congratulazioni!</span><br />
-                <span className="text-white/70">Hai completato il primo step. Ora scoprirai come mai dico che questo è un PERCORSO totalmente diverso dagli altri "guru online"</span>
+                🎯 <span className="font-semibold text-yellow-400">Perfetto!</span><br />
+                <span className="text-white/70">Ora ti mostro perché questo percorso è diverso da tutti gli altri "guru" che vedi online</span>
               </p>
               
               <Button
