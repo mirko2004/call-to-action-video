@@ -5,10 +5,6 @@ import VideoPlayer from "@/components/VideoPlayer";
 const Index = () => {
   const [videoEnded, setVideoEnded] = useState(false);
 
-  const handleVideoEnd = () => {
-    setVideoEnded(true);
-  };
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header Section */}
@@ -40,7 +36,7 @@ const Index = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             {/* Video Column */}
             <div className="lg:col-span-2 space-y-6">
-              <VideoPlayer onVideoEnd={handleVideoEnd} />
+              <VideoPlayer />
             </div>
 
             {/* Side Content */}

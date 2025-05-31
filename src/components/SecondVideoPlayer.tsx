@@ -1,6 +1,6 @@
 
-import { useRef, useState, useEffect } from "react";
-import { Play, Timer } from "lucide-react";
+import { useRef, useState, useEffect, useCallback } from "react";
+import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
 import FinalPopup from "./FinalPopup";
 
 interface SecondVideoPlayerProps {
@@ -11,27 +11,75 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(3);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(10); // durata simulata di 10 secondi
+  const [currentTime, setCurrentTime] = useState(0);
+  const [volume, setVolume] = useState(0.7);
+  const [showControls, setShowControls] = useState(true);
+  
+  const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
+  const previousVolumeRef = useRef(0.7);
 
+  // Stato derivato per il muto
+  const isMuted = volume === 0;
+
+  // Simula l'aggiornamento del tempo corrente
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (showTimer && timeLeft > 0) {
+    if (isPlaying && hasStarted) {
       interval = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
+        setCurrentTime(prev => {
+          if (prev >= videoDuration - 1) {
+            setIsPlaying(false);
             setShowTimer(false);
-            return 0;
+            setShowFinalPopup(true);
+            onVideoEnd();
+            return videoDuration;
           }
-          return prev - 1;
+          return prev + 1;
         });
       }, 1000);
     }
     
     return () => clearInterval(interval);
-  }, [showTimer, timeLeft]);
+  }, [isPlaying, hasStarted, videoDuration, onVideoEnd]);
+
+  // Timer per nascondere i controlli
+  const startControlsTimer = useCallback(() => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+    }
+    
+    controlsTimeout.current = setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 3000);
+  }, [isPlaying]);
+
+  const clearControlsTimer = useCallback(() => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+      controlsTimeout.current = null;
+    }
+  }, []);
+
+  // Gestisci il movimento del mouse per mostrare i controlli
+  useEffect(() => {
+    const handleMouseMove = () => {
+      if (hasStarted) {
+        setShowControls(true);
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      }
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isPlaying, hasStarted, startControlsTimer]);
 
   const handlePlayClick = () => {
     const video = videoRef.current;
@@ -42,17 +90,48 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       setIsPlaying(true);
       setHasStarted(true);
       setShowTimer(true);
-      
-      // SIMULAZIONE: Simula la fine del video dopo 3 secondi
-      console.log("Secondo video simulato iniziato - terminerà in 3 secondi");
-      setTimeout(() => {
-        console.log("Secondo video terminato - mostro popup finale");
-        setIsPlaying(false);
-        setShowTimer(false);
-        setShowFinalPopup(true);
-        onVideoEnd();
-      }, 3000);
     }
+  };
+
+  const togglePlayPause = () => {
+    const video = videoRef.current;
+    if (video) {
+      if (isPlaying) {
+        video.pause();
+        setIsPlaying(false);
+      } else {
+        video.play();
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (video) {
+      if (volume > 0) {
+        previousVolumeRef.current = volume;
+        setVolume(0);
+        video.volume = 0;
+      } else {
+        setVolume(previousVolumeRef.current);
+        video.volume = previousVolumeRef.current;
+      }
+    }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    const video = videoRef.current;
+    if (video) {
+      video.volume = newVolume;
+    }
+  };
+
+  const calculateProgress = () => {
+    if (videoDuration === 0) return 0;
+    return (currentTime / videoDuration) * 100;
   };
 
   const handleVideoEnd = () => {
@@ -73,12 +152,19 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   return (
     <>
       <div className="relative w-full max-w-2xl mx-auto space-y-6">
+        {/* Testo sopra il video */}
+        <div className="text-center">
+          <p className="text-white/70 text-sm">
+            🎯 Questo è il contenuto finale - dopo aver guardato tutto si aprirà l'accesso alle selezioni
+          </p>
+        </div>
+
         <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative">
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
-            controls={hasStarted}
-            muted
+            controls={false}
+            muted={false}
             playsInline
             preload="metadata"
             onEnded={handleVideoEnd}
@@ -96,9 +182,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
                   <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
                 </div>
-                <p className="text-lg">Video Esclusivo - Simulazione</p>
+                <p className="text-lg">Video Esclusivo Finale</p>
                 <p className="text-sm text-white/80">
-                  Clicca play per vedere il contenuto finale
+                  Clicca play per accedere alle selezioni
                 </p>
               </div>
             </div>
@@ -112,19 +198,78 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               </div>
             </div>
           )}
+
+          {/* Overlay per prevenire il click destro */}
+          {hasStarted && (
+            <div 
+              className="absolute inset-0 z-10"
+              onContextMenu={(e) => e.preventDefault()}
+            />
+          )}
+          
+          {/* Barra di progresso */}
+          {hasStarted && (
+            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
+              <div 
+                className="h-full bg-yellow-500 transition-all duration-200"
+                style={{ width: `${calculateProgress()}%` }}
+              ></div>
+            </div>
+          )}
+          
+          {/* Controlli video personalizzati */}
+          {hasStarted && (showControls || !isPlaying) && (
+            <div 
+              className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+            >
+              <div className="flex items-center space-x-4">
+                <button 
+                  onClick={togglePlayPause}
+                  className="text-white hover:text-yellow-400 transition-colors"
+                >
+                  {isPlaying ? (
+                    <Pause className="w-6 h-6" />
+                  ) : (
+                    <Play className="w-6 h-6" fill="currentColor" />
+                  )}
+                </button>
+                
+                <button 
+                  onClick={toggleMute}
+                  className="text-white hover:text-yellow-400 transition-colors"
+                >
+                  {isMuted ? (
+                    <VolumeX className="w-5 h-5" />
+                  ) : (
+                    <Volume2 className="w-5 h-5" />
+                  )}
+                </button>
+                
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={isMuted ? 0 : volume}
+                  onChange={handleVolumeChange}
+                  className="w-24 accent-yellow-500"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Timer Section */}
-        {showTimer && timeLeft > 0 && (
-          <div className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-6 animate-fade-in">
-            <div className="flex items-center justify-center space-x-2 mb-3">
+        {/* Timer rimane sempre visibile durante la riproduzione */}
+        {hasStarted && showTimer && currentTime < videoDuration && (
+          <div className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-red-400 animate-pulse" />
               <span className="text-red-400 font-semibold text-lg">
-                {timeLeft}
+                {videoDuration - currentTime} secondi rimanenti
               </span>
             </div>
             <p className="text-white/90 text-sm leading-relaxed">
-              🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra<br />
+              🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra poco<br />
               <span className="text-white/70">Questo è l'ultimo step prima dell'opportunità esclusiva</span>
             </p>
           </div>
