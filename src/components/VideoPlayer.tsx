@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -279,7 +280,7 @@ const VideoPlayer = () => {
             Contenuto Video Esclusivo
           </h1>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Guarda attentamente per sbloccare quello che cambia tutto 🚀
+            Guarda attentamente per sbloccare l'accesso al video completo 🚀
           </p>
         </header>
 
@@ -398,20 +399,6 @@ const VideoPlayer = () => {
 
           {showButton && !accessExpired && (
             <div className="text-center bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-6 animate-fade-in space-y-4">
-              {accessTimeLeft > 0 && (
-                <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mb-4">
-                  <div className="flex items-center justify-center space-x-2 mb-2">
-                    <Clock className="w-5 h-5 text-red-400 animate-pulse" />
-                    <span className="text-red-400 font-bold text-xl">
-                      {formatAccessTime(accessTimeLeft)}
-                    </span>
-                  </div>
-                  <p className="text-white/90 text-sm">
-                    ⚠️ Tempo rimasto per accedere al contenuto
-                  </p>
-                </div>
-              )}
-              
               <p className="text-white/90 text-sm mb-4 leading-relaxed">
                 🎯 <span className="font-semibold text-yellow-400">Perfetto!</span><br />
                 <span className="text-white/70">Ora ti mostro perché questo percorso è diverso da tutti gli altri "guru" che vedi online</span>
@@ -424,6 +411,20 @@ const VideoPlayer = () => {
               >
                 🔥 Accedi al Contenuto Esclusivo
               </Button>
+
+              {accessTimeLeft > 0 && (
+                <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mt-4">
+                  <div className="flex items-center justify-center space-x-2 mb-2">
+                    <Clock className="w-5 h-5 text-red-400 animate-pulse" />
+                    <span className="text-red-400 font-bold text-xl">
+                      {formatAccessTime(accessTimeLeft)}
+                    </span>
+                  </div>
+                  <p className="text-white/90 text-sm">
+                    ⚠️ Tempo rimasto per accedere al contenuto
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

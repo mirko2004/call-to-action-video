@@ -1,6 +1,6 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Play, Pause, Volume2, VolumeX, Timer } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
 
 interface SecondVideoPlayerProps {
@@ -9,6 +9,7 @@ interface SecondVideoPlayerProps {
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
@@ -17,12 +18,23 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
 
   // Stato derivato per il muto
   const isMuted = volume === 0;
+
+  // Listener per fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // Simula l'aggiornamento del tempo corrente
   useEffect(() => {
@@ -120,6 +132,21 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   };
 
+  const toggleFullscreen = async () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    try {
+      if (!isFullscreen) {
+        await container.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.log("Fullscreen error:", error);
+    }
+  };
+
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
@@ -159,7 +186,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           </p>
         </div>
 
-        <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative">
+        <div 
+          ref={containerRef}
+          className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
+        >
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
@@ -254,6 +284,19 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   onChange={handleVolumeChange}
                   className="w-24 accent-yellow-500"
                 />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={toggleFullscreen}
+                  className="text-white hover:text-yellow-400 transition-colors"
+                >
+                  {isFullscreen ? (
+                    <Minimize className="w-5 h-5" />
+                  ) : (
+                    <Maximize className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
           )}
