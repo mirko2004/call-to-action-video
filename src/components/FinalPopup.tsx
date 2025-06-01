@@ -48,14 +48,15 @@ const FinalPopup = () => {
 
   const handleQuestionnaireClick = () => {
     setHasClicked(true);
-    // Qui metterai il link al tuo questionario
+    // 🔥 QUI PUOI MODIFICARE IL LINK ESTERNO 🔥
+    // Sostituisci l'URL sotto con il tuo link al questionario
     window.open("https://esempio-questionario.com", "_blank");
   };
 
   if (isExpired) {
     return (
-      <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
-        <div className="bg-gradient-to-br from-purple-900 to-black border border-purple-500 rounded-2xl p-8 max-w-md mx-4 text-center space-y-6">
+      <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 animate-fade-in">
+        <div className="bg-gradient-to-br from-purple-900 to-black border border-purple-500 rounded-2xl p-8 max-w-md mx-4 text-center space-y-6 animate-scale-in">
           <div className="text-purple-400 text-4xl mb-4">📱</div>
           
           <h3 className="text-2xl font-bold text-purple-400">
@@ -86,7 +87,7 @@ const FinalPopup = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 animate-fade-in">
       <div className="bg-gradient-to-br from-green-900 to-black border border-green-500 rounded-2xl p-8 max-w-md mx-4 text-center space-y-6 animate-scale-in">
         <div className="text-green-400 text-4xl mb-4">🎖️</div>
         
@@ -94,10 +95,10 @@ const FinalPopup = () => {
           ACCESSO ESCLUSIVO SBLOCCATO!
         </h3>
         
-        <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mb-6">
+        <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mb-6 animate-pulse">
           <div className="flex items-center justify-center space-x-2 mb-2">
             <Timer className="w-5 h-5 text-red-400 animate-pulse" />
-            <span className="text-red-400 font-bold text-xl">
+            <span className="text-red-400 font-bold text-xl" key={timeLeft}>
               {formatTime(timeLeft)}
             </span>
           </div>

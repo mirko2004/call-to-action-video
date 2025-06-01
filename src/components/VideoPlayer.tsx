@@ -1,26 +1,37 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, Volume2, VolumeX, Timer, Clock } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Timer, Clock, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
-const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => (
-  <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-    <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center">
-      <h2 className="text-2xl font-bold mb-4 text-yellow-400">Perfetto! 🎯</h2>
-      <p className="mb-6 text-gray-300">
-        Hai completato il primo step! Ora ti mostro qualcosa che ti farà capire perché questo percorso è completamente diverso dal solito.
-      </p>
-      <div className="flex flex-col gap-3">
-        <Button 
-          onClick={onContinue}
-          className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-        >
-          🔥 Vai al Contenuto Esclusivo
-        </Button>
+const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
+  const navigate = useNavigate();
+  
+  const handleContinue = () => {
+    // Forza la navigazione per mobile
+    navigate("/secondo-video");
+    onContinue();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center animate-scale-in">
+        <h2 className="text-2xl font-bold mb-4 text-yellow-400">Perfetto! 🎯</h2>
+        <p className="mb-6 text-gray-300">
+          Hai completato il primo step! Ora ti mostro qualcosa che ti farà capire perché questo percorso è completamente diverso dal solito.
+        </p>
+        <div className="flex flex-col gap-3">
+          <Button 
+            onClick={handleContinue}
+            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+          >
+            🔥 Vai al Contenuto Esclusivo
+          </Button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const VideoPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -35,14 +46,27 @@ const VideoPlayer = () => {
   const [accessTimeLeft, setAccessTimeLeft] = useState(0);
   const [accessExpired, setAccessExpired] = useState(false);
   const [userIP, setUserIP] = useState<string>("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
   const playerInitializedRef = useRef(false);
   const previousVolumeRef = useRef(0.7);
   const accessTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const isMuted = volume === 0;
+
+  // Listener per fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // Simula il rilevamento dell'IP
   useEffect(() => {
@@ -63,11 +87,13 @@ const VideoPlayer = () => {
     }
   }, [showButton, accessExpired]);
 
+  // Timer countdown con aggiornamento forzato per mobile
   useEffect(() => {
     if (accessTimeLeft > 0) {
-      const timer = setTimeout(() => {
+      const timer = setInterval(() => {
         setAccessTimeLeft(prev => {
-          if (prev <= 1) {
+          const newValue = prev - 1;
+          if (newValue <= 0) {
             // Tempo scaduto - blocca IP per 10 minuti
             const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
             localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
@@ -75,11 +101,11 @@ const VideoPlayer = () => {
             setShowButton(false);
             return 0;
           }
-          return prev - 1;
+          return newValue;
         });
       }, 1000);
       
-      return () => clearTimeout(timer);
+      return () => clearInterval(timer);
     }
   }, [accessTimeLeft, userIP]);
 
@@ -212,7 +238,7 @@ const VideoPlayer = () => {
   };
 
   const handleContinue = () => {
-    window.location.href = "/secondo-video";
+    navigate("/secondo-video");
   };
 
   const togglePlayPause = () => {
@@ -238,6 +264,21 @@ const VideoPlayer = () => {
     }
   };
 
+  const toggleFullscreen = async () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    try {
+      if (!isFullscreen) {
+        await container.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.log("Fullscreen error:", error);
+    }
+  };
+
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
@@ -250,7 +291,7 @@ const VideoPlayer = () => {
 
   if (accessExpired) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center animate-fade-in">
         <div className="w-full max-w-md mx-auto text-center space-y-6">
           <div className="text-red-400 text-6xl mb-6">⏰</div>
           <h2 className="text-3xl font-bold text-red-400 mb-4">
@@ -275,7 +316,7 @@ const VideoPlayer = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center">
       <div className="w-full max-w-4xl mx-auto">
-        <header className="text-center mb-10">
+        <header className="text-center mb-6 lg:mb-10 animate-fade-in">
           <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">
             Contenuto Video Esclusivo
           </h1>
@@ -285,20 +326,23 @@ const VideoPlayer = () => {
         </header>
 
         <div className="relative w-full max-w-2xl mx-auto space-y-6">
-          <div className="text-center">
+          <div className="text-center animate-fade-in">
             <p className="text-white/70 text-sm">
-              💡 Dopo aver guardato tutto il video apparirà il pulsante per continuare
+              💡 Dopo aver salvato tutto il video apparirà il pulsante per continuare
             </p>
           </div>
 
-          <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group">
+          <div 
+            ref={containerRef}
+            className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
+          >
             {!hasStarted ? (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
                 <div 
-                  className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer gap-4" 
+                  className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer gap-4 transition-all duration-300 hover:scale-105" 
                   onClick={handlePlayClick}
                 >
-                  <div className="bg-yellow-500 hover:bg-yellow-600 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                  <div className="bg-yellow-500 hover:bg-yellow-600 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-pulse">
                     <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
                   </div>
                   <p className="text-lg font-medium">Clicca per iniziare il video</p>
@@ -319,7 +363,7 @@ const VideoPlayer = () => {
                         left: 0, 
                         width: '100%', 
                         height: '100%',
-                        borderRadius: '0.75rem',
+                        borderRadius: isFullscreen ? '0' : '0.75rem',
                         overflow: 'hidden'
                       }}
                       title="Video Esclusivo"
@@ -377,6 +421,19 @@ const VideoPlayer = () => {
                         className="w-24 accent-yellow-500"
                       />
                     </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={toggleFullscreen}
+                        className="text-white hover:text-yellow-400 transition-colors"
+                      >
+                        {isFullscreen ? (
+                          <Minimize className="w-5 h-5" />
+                        ) : (
+                          <Maximize className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -384,7 +441,7 @@ const VideoPlayer = () => {
           </div>
 
           {hasStarted && !videoEnded && videoDuration > 0 && (
-            <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4 animate-fade-in">
               <div className="flex items-center justify-center space-x-2 mb-2">
                 <Timer className="w-5 h-5 text-blue-400" />
                 <span className="text-blue-400 font-semibold text-lg">
@@ -407,21 +464,24 @@ const VideoPlayer = () => {
               <Button
                 onClick={handleButtonClick}
                 size="lg"
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-6 py-3 text-base lg:text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full max-w-xs mx-auto"
               >
                 🔥 Accedi al Contenuto Esclusivo
               </Button>
 
               {accessTimeLeft > 0 && (
-                <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mt-4">
+                <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mt-4 animate-pulse">
                   <div className="flex items-center justify-center space-x-2 mb-2">
                     <Clock className="w-5 h-5 text-red-400 animate-pulse" />
-                    <span className="text-red-400 font-bold text-xl">
+                    <span className="text-red-400 font-bold text-xl" key={accessTimeLeft}>
                       {formatAccessTime(accessTimeLeft)}
                     </span>
                   </div>
                   <p className="text-white/90 text-sm">
                     ⚠️ Tempo rimasto per accedere al contenuto
+                  </p>
+                  <p className="text-white/70 text-xs mt-2">
+                    Dopo questo tempo, l'opportunità sparirà per sempre
                   </p>
                 </div>
               )}
