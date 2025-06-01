@@ -1,4 +1,3 @@
-
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
@@ -19,6 +18,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
@@ -36,21 +36,26 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Simula l'aggiornamento del tempo corrente
+  // Simula l'aggiornamento del tempo corrente con force update per mobile
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (isPlaying && hasStarted) {
       interval = setInterval(() => {
         setCurrentTime(prev => {
-          if (prev >= videoDuration - 1) {
+          const newTime = prev >= videoDuration - 1 ? videoDuration : prev + 1;
+          
+          if (newTime >= videoDuration) {
             setIsPlaying(false);
             setShowTimer(false);
             setShowFinalPopup(true);
             onVideoEnd();
-            return videoDuration;
           }
-          return prev + 1;
+          
+          // Force update per mobile
+          setForceUpdate(count => count + 1);
+          
+          return newTime;
         });
       }, 1000);
     }
@@ -180,7 +185,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     <>
       <div className="relative w-full max-w-2xl mx-auto space-y-6">
         {/* Testo sopra il video */}
-        <div className="text-center">
+        <div className="text-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <p className="text-white/70 text-sm">
             🎯 Questo è il contenuto finale - dopo aver guardato tutto il video si aprirà l'accesso alle selezioni
           </p>
@@ -188,7 +193,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
         <div 
           ref={containerRef}
-          className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
+          className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
+          style={{ animationDelay: '0.4s' }}
         >
           <video
             ref={videoRef}
@@ -304,7 +310,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
         {/* Timer rimane sempre visibile durante la riproduzione */}
         {hasStarted && showTimer && currentTime < videoDuration && (
-          <div className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4">
+          <div 
+            className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
+            key={`timer-${forceUpdate}`}
+          >
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-red-400 animate-pulse" />
               <span className="text-red-400 font-semibold text-lg">
