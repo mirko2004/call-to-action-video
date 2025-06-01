@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Clock, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,14 +15,15 @@ const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center animate-scale-in">
-        <h2 className="text-2xl font-bold mb-4 text-yellow-400">Perfetto! 🎯</h2>
-        <p className="mb-6 text-gray-300">
+        <h2 className="text-2xl font-bold mb-4 text-yellow-400 animate-fade-in" style={{ animationDelay: '0.2s' }}>Perfetto! 🎯</h2>
+        <p className="mb-6 text-gray-300 animate-fade-in" style={{ animationDelay: '0.4s' }}>
           Hai completato il primo step! Ora ti mostro qualcosa che ti farà capire perché questo percorso è completamente diverso dal solito.
         </p>
         <div className="flex flex-col gap-3">
           <Button 
             onClick={handleContinue}
-            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-scale-in"
+            style={{ animationDelay: '0.6s' }}
           >
             🔥 Vai al Contenuto Esclusivo
           </Button>
@@ -47,6 +47,7 @@ const VideoPlayer = () => {
   const [accessExpired, setAccessExpired] = useState(false);
   const [userIP, setUserIP] = useState<string>("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0); // For forcing mobile updates
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
@@ -87,12 +88,13 @@ const VideoPlayer = () => {
     }
   }, [showButton, accessExpired]);
 
-  // Timer countdown con aggiornamento forzato per mobile
+  // Timer countdown con force update per mobile
   useEffect(() => {
     if (accessTimeLeft > 0) {
       const timer = setInterval(() => {
         setAccessTimeLeft(prev => {
           const newValue = prev - 1;
+          setForceUpdate(f => f + 1); // Force re-render for mobile
           if (newValue <= 0) {
             // Tempo scaduto - blocca IP per 10 minuti
             const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
@@ -169,6 +171,7 @@ const VideoPlayer = () => {
           
           const handleTimeUpdate = (data: any) => {
             setCurrentTime(Math.floor(data.seconds));
+            setForceUpdate(f => f + 1); // Force re-render for mobile timer
           };
           
           playerRef.current.on('play', handlePlay);
@@ -293,14 +296,14 @@ const VideoPlayer = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center animate-fade-in">
         <div className="w-full max-w-md mx-auto text-center space-y-6">
-          <div className="text-red-400 text-6xl mb-6">⏰</div>
-          <h2 className="text-3xl font-bold text-red-400 mb-4">
+          <div className="text-red-400 text-6xl mb-6 animate-scale-in">⏰</div>
+          <h2 className="text-3xl font-bold text-red-400 mb-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             Tempo Scaduto
           </h2>
-          <p className="text-white/80 leading-relaxed mb-6">
+          <p className="text-white/80 leading-relaxed mb-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
             Il tempo per accedere al contenuto è scaduto. L'opportunità non è più disponibile.
           </p>
-          <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4">
+          <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 animate-scale-in" style={{ animationDelay: '0.6s' }}>
             <p className="text-red-400 font-semibold text-sm mb-2">
               💬 Vuoi una seconda possibilità?
             </p>
@@ -317,24 +320,25 @@ const VideoPlayer = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center">
       <div className="w-full max-w-4xl mx-auto">
         <header className="text-center mb-6 lg:mb-10 animate-fade-in">
-          <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">
+          <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500 animate-slide-in-right" style={{ animationDelay: '0.2s' }}>
             Contenuto Video Esclusivo
           </h1>
-          <p className="text-gray-400 max-w-xl mx-auto">
+          <p className="text-gray-400 max-w-xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
             Guarda attentamente per sbloccare l'accesso al video completo 🚀
           </p>
         </header>
 
         <div className="relative w-full max-w-2xl mx-auto space-y-6">
-          <div className="text-center animate-fade-in">
+          <div className="text-center animate-fade-in" style={{ animationDelay: '0.6s' }}>
             <p className="text-white/70 text-sm">
-              💡 Dopo aver salvato tutto il video apparirà il pulsante per continuare
+              💡 Dopo aver visto tutto il video apparirà il pulsante per continuare
             </p>
           </div>
 
           <div 
             ref={containerRef}
             className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
+            style={{ animationDelay: '0.8s' }}
           >
             {!hasStarted ? (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
@@ -345,7 +349,7 @@ const VideoPlayer = () => {
                   <div className="bg-yellow-500 hover:bg-yellow-600 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-pulse">
                     <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
                   </div>
-                  <p className="text-lg font-medium">Clicca per iniziare il video</p>
+                  <p className="text-lg font-medium animate-fade-in" style={{ animationDelay: '1s' }}>Clicca per iniziare il video</p>
                 </div>
               </div>
             ) : (
@@ -443,12 +447,12 @@ const VideoPlayer = () => {
           {hasStarted && !videoEnded && videoDuration > 0 && (
             <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4 animate-fade-in">
               <div className="flex items-center justify-center space-x-2 mb-2">
-                <Timer className="w-5 h-5 text-blue-400" />
-                <span className="text-blue-400 font-semibold text-lg">
+                <Timer className="w-5 h-5 text-blue-400 animate-pulse" />
+                <span className="text-blue-400 font-semibold text-lg" key={`${currentTime}-${forceUpdate}`}>
                   {Math.max(0, videoDuration - currentTime)} secondi rimanenti
                 </span>
               </div>
-              <p className="text-white/90 text-sm">
+              <p className="text-white/90 text-sm animate-fade-in" style={{ animationDelay: '0.2s' }}>
                 Continua a guardare fino alla fine per sbloccare il contenuto
               </p>
             </div>
@@ -456,7 +460,7 @@ const VideoPlayer = () => {
 
           {showButton && !accessExpired && (
             <div className="text-center bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-6 animate-fade-in space-y-4">
-              <p className="text-white/90 text-sm mb-4 leading-relaxed">
+              <p className="text-white/90 text-sm mb-4 leading-relaxed animate-slide-in-right" style={{ animationDelay: '0.2s' }}>
                 🎯 <span className="font-semibold text-yellow-400">Perfetto!</span><br />
                 <span className="text-white/70">Ora ti mostro perché questo percorso è diverso da tutti gli altri "guru" che vedi online</span>
               </p>
@@ -464,7 +468,8 @@ const VideoPlayer = () => {
               <Button
                 onClick={handleButtonClick}
                 size="lg"
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-6 py-3 text-base lg:text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full max-w-xs mx-auto"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-6 py-3 text-base lg:text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full max-w-xs mx-auto animate-scale-in"
+                style={{ animationDelay: '0.4s' }}
               >
                 🔥 Accedi al Contenuto Esclusivo
               </Button>
@@ -473,14 +478,14 @@ const VideoPlayer = () => {
                 <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mt-4 animate-pulse">
                   <div className="flex items-center justify-center space-x-2 mb-2">
                     <Clock className="w-5 h-5 text-red-400 animate-pulse" />
-                    <span className="text-red-400 font-bold text-xl" key={accessTimeLeft}>
+                    <span className="text-red-400 font-bold text-xl" key={`access-${accessTimeLeft}-${forceUpdate}`}>
                       {formatAccessTime(accessTimeLeft)}
                     </span>
                   </div>
-                  <p className="text-white/90 text-sm">
+                  <p className="text-white/90 text-sm animate-fade-in" style={{ animationDelay: '0.6s' }}>
                     ⚠️ Tempo rimasto per accedere al contenuto
                   </p>
-                  <p className="text-white/70 text-xs mt-2">
+                  <p className="text-white/70 text-xs mt-2 animate-fade-in" style={{ animationDelay: '0.8s' }}>
                     Dopo questo tempo, l'opportunità sparirà per sempre
                   </p>
                 </div>
