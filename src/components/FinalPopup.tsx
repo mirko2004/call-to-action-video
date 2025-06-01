@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Timer, Lock } from "lucide-react";
+import { Timer, Lock, CheckCircle } from "lucide-react";
 
 const FinalPopup = () => {
   const [timeLeft, setTimeLeft] = useState(120); // 2 minuti = 120 secondi
@@ -23,8 +23,10 @@ const FinalPopup = () => {
     }
   }, []);
 
-  // Timer countdown
+  // Timer countdown - si ferma quando hasClicked è true
   useEffect(() => {
+    if (hasClicked) return; // Ferma il timer se ha già cliccato
+    
     if (timeLeft <= 0) {
       setIsExpired(true);
       // Blocca questo IP per 10 minuti
@@ -38,7 +40,7 @@ const FinalPopup = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timeLeft, userIP]);
+  }, [timeLeft, userIP, hasClicked]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -95,33 +97,59 @@ const FinalPopup = () => {
           ACCESSO ESCLUSIVO SBLOCCATO!
         </h3>
         
-        <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mb-6 animate-pulse">
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <Timer className="w-5 h-5 text-red-400 animate-pulse" />
-            <span className="text-red-400 font-bold text-xl" key={timeLeft}>
-              {formatTime(timeLeft)}
-            </span>
+        {!hasClicked ? (
+          <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mb-6 animate-pulse">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Timer className="w-5 h-5 text-red-400 animate-pulse" />
+              <span className="text-red-400 font-bold text-xl" key={timeLeft}>
+                {formatTime(timeLeft)}
+              </span>
+            </div>
+            <p className="text-white/90 text-sm">
+              ⚠️ Tempo rimasto per accedere alle selezioni
+            </p>
           </div>
-          <p className="text-white/90 text-sm">
-            ⚠️ Tempo rimasto per accedere alle selezioni
-          </p>
-        </div>
+        ) : (
+          <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/50 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <CheckCircle className="w-5 h-5 text-green-400" />
+              <span className="text-green-400 font-bold text-lg">
+                Questionario Aperto!
+              </span>
+            </div>
+            <p className="text-white/90 text-sm">
+              ✅ Perfetto! Il questionario è stato aperto in una nuova finestra
+            </p>
+            <p className="text-white/70 text-xs mt-2">
+              Puoi cliccare di nuovo il pulsante se necessario
+            </p>
+          </div>
+        )}
         
         <p className="text-white/90 leading-relaxed">
-          Hai sbloccato l'accesso alle selezioni per entrare nella community esclusiva. Hai solo <span className="text-red-400 font-bold">2 minuti</span> per compilare il questionario!
+          {!hasClicked ? (
+            <>
+              Hai sbloccato l'accesso alle selezioni per entrare nella community esclusiva. Hai solo <span className="text-red-400 font-bold">2 minuti</span> per compilare il questionario!
+            </>
+          ) : (
+            <>
+              Compila attentamente il questionario per completare la tua candidatura. Questo è l'ultimo step per entrare nella community esclusiva!
+            </>
+          )}
         </p>
         
-        <p className="text-green-400 font-semibold text-sm">
-          Dopo questo tempo, l'opportunità sparirà per sempre.
-        </p>
+        {!hasClicked && (
+          <p className="text-green-400 font-semibold text-sm">
+            Dopo questo tempo, l'opportunità sparirà per sempre.
+          </p>
+        )}
         
         <Button
           onClick={handleQuestionnaireClick}
-          disabled={hasClicked}
           size="lg"
           className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full"
         >
-          {hasClicked ? "Questionario Aperto..." : "🚀 Accedi alle Selezioni - Compila Qui"}
+          {hasClicked ? "🔄 Riapri Questionario" : "🚀 Accedi alle Selezioni - Compila Qui"}
         </Button>
         
         <p className="text-white/60 text-xs">
