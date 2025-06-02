@@ -7,21 +7,24 @@ interface SecondVideoPlayerProps {
 }
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(607); // 10:07 = 607 secondi
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMuted, setIsMuted] = useState(true); // Inizia muto per permettere autoplay
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+
+  const isMuted = volume === 0;
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -33,49 +36,35 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Aggiorna il volume del video quando cambia
+  // Gestione del tempo e sincronizzazione
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.volume = volume;
-      videoRef.current.muted = isMuted; // Imposta lo stato muto
+    if (isPlaying && hasStarted) {
+      progressInterval.current = setInterval(() => {
+        setCurrentTime(prev => {
+          const newTime = prev + 1;
+          
+          if (newTime >= videoDuration) {
+            clearInterval(progressInterval.current!);
+            setIsPlaying(false);
+            setShowTimer(false);
+            setShowFinalPopup(true);
+            onVideoEnd();
+            return videoDuration;
+          }
+          
+          return newTime;
+        });
+      }, 1000);
+    } else if (progressInterval.current) {
+      clearInterval(progressInterval.current);
     }
-  }, [volume, isMuted]);
-
-  // Gestione eventi video
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
-      
-      // Controlla se il video è terminato
-      if (video.currentTime >= video.duration - 0.5) {
-        setIsPlaying(false);
-        setShowTimer(false);
-        setShowFinalPopup(true);
-        onVideoEnd();
+    
+    return () => {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
       }
     };
-
-    const handleLoadedMetadata = () => {
-      setVideoDuration(video.duration);
-    };
-
-    const handleError = () => {
-      console.error("Errore nel caricamento del video", video.error);
-    };
-
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('error', handleError);
-
-    return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('error', handleError);
-    };
-  }, [onVideoEnd]);
+  }, [isPlaying, hasStarted, videoDuration, onVideoEnd]);
 
   // Timer per nascondere i controlli
   const startControlsTimer = useCallback(() => {
@@ -97,7 +86,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   }, []);
 
-  // Gestisci il movimento del mouse per mostrare i controlli
+  // Gestisci movimento mouse per controlli
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
@@ -112,58 +101,48 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isPlaying, hasStarted, startControlsTimer]);
 
+  // Gestione comandi player Archive.org
+  const sendPlayerCommand = (command: string) => {
+    if (!iframeRef.current || !isPlayerReady) return;
+    
+    const iframeWindow = iframeRef.current.contentWindow;
+    if (!iframeWindow) return;
+    
+    iframeWindow.postMessage({
+      event: 'command',
+      func: command
+    }, 'https://archive.org');
+  };
+
   const handlePlayClick = () => {
-    if (videoRef.current) {
-      // Strategia per aggirare le restrizioni di autoplay
-      const playPromise = videoRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-            setHasStarted(true);
-            setShowTimer(true);
-            // Smuta dopo l'avvio
-            setIsMuted(false);
-            
-            // Nascondi i controlli dopo 3 secondi
-            setTimeout(() => setShowControls(false), 3000);
-          })
-          .catch(error => {
-            console.error("Errore nella riproduzione:", error);
-            // Fallback per browser che richiedono interazione diretta
-            videoRef.current!.muted = true;
-            videoRef.current!.play()
-              .then(() => {
-                setIsPlaying(true);
-                setHasStarted(true);
-                setShowTimer(true);
-                setTimeout(() => setShowControls(false), 3000);
-              });
-          });
-      }
-    }
+    setHasStarted(true);
+    setShowTimer(true);
+    setIsPlaying(true);
+    
+    setTimeout(() => {
+      sendPlayerCommand('play');
+      // Nascondi controlli dopo 3 secondi
+      setTimeout(() => setShowControls(false), 3000);
+    }, 1000);
   };
 
   const togglePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      sendPlayerCommand('pause');
+    } else {
+      sendPlayerCommand('play');
     }
+    setIsPlaying(!isPlaying);
   };
 
   const toggleMute = () => {
     if (volume > 0) {
       previousVolumeRef.current = volume;
       setVolume(0);
-      setIsMuted(true);
+      sendPlayerCommand('mute');
     } else {
       setVolume(previousVolumeRef.current);
-      setIsMuted(false);
+      sendPlayerCommand('unmute');
     }
   };
 
@@ -185,8 +164,41 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
-    setIsMuted(newVolume === 0);
+    
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({
+        event: 'command',
+        func: 'setVolume',
+        value: newVolume * 100
+      }, 'https://archive.org');
+    }
   };
+
+  // Listener per messaggi dal player
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== 'https://archive.org') return;
+      
+      if (event.data.event === 'onReady') {
+        setIsPlayerReady(true);
+        // Imposta volume iniziale
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage({
+            event: 'command',
+            func: 'setVolume',
+            value: volume * 100
+          }, 'https://archive.org');
+        }
+      }
+      
+      if (event.data.event === 'onPlayProgress') {
+        setCurrentTime(Math.floor(event.data.currentTime));
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [volume]);
 
   const calculateProgress = () => {
     if (videoDuration === 0) return 0;
@@ -195,7 +207,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -229,24 +241,24 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   </p>
                 </div>
               </div>
-              {/* Video nascosto per precaricamento */}
-              <video
-                ref={videoRef}
-                src="https://archive.org/download/lv_0_20250602135445/lv_0_20250602135445.mp4"
+              
+              {/* Iframe nascosto per precaricamento */}
+              <iframe
+                ref={iframeRef}
+                src="https://archive.org/embed/lv_0_20250602135445?controls=0"
                 className="hidden"
-                preload="auto"
-                muted // Necessario per autoplay
-                playsInline // Necessario per iOS
+                allow="autoplay"
               />
             </div>
           ) : (
             <div className="w-full h-full relative">
-              <video
-                ref={videoRef}
-                src="https://archive.org/download/lv_0_20250602135445/lv_0_20250602135445.mp4"
-                className="w-full h-full object-cover"
-                muted={isMuted}
-                playsInline
+              <iframe
+                ref={iframeRef}
+                src="https://archive.org/embed/lv_0_20250602135445?autoplay=1&controls=0"
+                className="w-full h-full"
+                frameBorder="0"
+                allow="autoplay; fullscreen"
+                allowFullScreen
               />
               
               <div 
