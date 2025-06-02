@@ -14,7 +14,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(10); // durata simulata di 10 secondi
+  const [videoDuration, setVideoDuration] = useState(607); // 10:07 = 607 secondi (dalla tua immagine)
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
@@ -37,7 +37,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Simula l'aggiornamento del tempo corrente con force update per mobile
+  // Simula l'aggiornamento del tempo corrente sincronizzato con il video reale
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
@@ -105,9 +105,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     setShowTimer(true);
     // Nascondi i controlli dopo aver iniziato
     setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
-      }
+      setShowControls(false);
     }, 3000);
   };
 
@@ -149,6 +147,12 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return (currentTime / videoDuration) * 100;
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <>
       <div className="relative w-full max-w-2xl mx-auto space-y-6">
@@ -184,27 +188,25 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           ) : (
             <div className="w-full h-full relative">
               <iframe
-                src="https://archive.org/embed/lv_0_20250602135445?autoplay=1"
+                src="https://archive.org/embed/lv_0_20250602135445?autoplay=1&controls=0"
                 className="w-full h-full"
                 frameBorder="0"
                 allow="fullscreen"
                 allowFullScreen
                 style={{
                   borderRadius: isFullscreen ? '0' : '0.75rem',
-                  pointerEvents: showControls ? 'auto' : 'none'
+                  pointerEvents: 'none' // Disabilita completamente i controlli
                 }}
               />
               
-              {/* Overlay per nascondere i controlli del video quando necessario */}
-              {!showControls && (
-                <div 
-                  className="absolute inset-0 z-10 bg-transparent cursor-pointer"
-                  onClick={() => setShowControls(true)}
-                  onContextMenu={(e) => e.preventDefault()}
-                />
-              )}
+              {/* Overlay completo per gestire i click e nascondere i controlli */}
+              <div 
+                className="absolute inset-0 z-10 bg-transparent cursor-pointer"
+                onClick={() => setShowControls(!showControls)}
+                onContextMenu={(e) => e.preventDefault()}
+              />
               
-              {/* Barra di progresso */}
+              {/* Barra di progresso personalizzata */}
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
                 <div 
                   className="h-full bg-yellow-500 transition-all duration-200"
@@ -249,6 +251,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                       onChange={handleVolumeChange}
                       className="w-24 accent-yellow-500"
                     />
+                    
+                    <span className="text-white text-sm">
+                      {formatTime(currentTime)} / {formatTime(videoDuration)}
+                    </span>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -269,7 +275,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           )}
         </div>
 
-        {/* Timer rimane sempre visibile durante la riproduzione */}
+        {/* Timer sincronizzato con la durata reale del video */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
@@ -278,7 +284,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-red-400 animate-pulse" />
               <span className="text-red-400 font-semibold text-lg">
-                {videoDuration - currentTime} secondi rimanenti
+                {formatTime(videoDuration - currentTime)} rimanenti
               </span>
             </div>
             <p className="text-white/90 text-sm leading-relaxed">
