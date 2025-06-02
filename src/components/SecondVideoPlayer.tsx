@@ -8,11 +8,12 @@ interface SecondVideoPlayerProps {
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration] = useState(607); // 10:07 in seconds
+  const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(false);
@@ -22,16 +23,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
-  const lastUpdateTime = useRef<number>(0);
-  const videoKey = useRef(Date.now()); // Key to force iframe reload
 
   const isMuted = volume === 0;
 
-  // Updated MEGA embed URL with hidden controls
-  const getMegaUrl = (autoplay = false) => {
-    const base = "https://mega.nz/embed/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE";
-    return `${base}?nectrl=1${autoplay ? "&autoplay=1" : ""}`;
-  };
+  // Direct video URL (replace with your actual video URL)
+  const VIDEO_URL = "https://example.com/path/to/video.mp4";
 
   // Listener for fullscreen changes
   useEffect(() => {
@@ -43,43 +39,58 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Handle timer and video sync
+  // Handle video events
   useEffect(() => {
-    if (isPlaying && hasStarted) {
-      lastUpdateTime.current = Date.now();
-      
-      progressInterval.current = setInterval(() => {
-        setCurrentTime(prev => {
-          const now = Date.now();
-          const elapsedSeconds = Math.floor((now - lastUpdateTime.current) / 1000);
-          lastUpdateTime.current = now;
-          
-          const newTime = prev + elapsedSeconds;
-          
-          if (newTime >= videoDuration) {
-            clearInterval(progressInterval.current!);
-            setIsPlaying(false);
-            setShowTimer(false);
-            setShowFinalPopup(true);
-            onVideoEnd();
-            return videoDuration;
-          }
-          
-          return newTime;
-        });
-      }, 1000);
-    } else if (progressInterval.current) {
-      clearInterval(progressInterval.current);
-    }
-    
-    return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
-    };
-  }, [isPlaying, hasStarted, videoDuration, onVideoEnd]);
+    const video = videoRef.current;
+    if (!video) return;
 
-  // Handle mouse movement for controls
+    const handleLoadedMetadata = () => {
+      setVideoDuration(Math.floor(video.duration));
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(Math.floor(video.currentTime));
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setShowTimer(false);
+      setShowFinalPopup(true);
+      onVideoEnd();
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [onVideoEnd]);
+
+  // Sync volume with video element
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  // Sync play/pause with video element
+  useEffect(() => {
+    if (!videoRef.current) return;
+    
+    if (isPlaying) {
+      videoRef.current.play().catch(error => {
+        console.error("Playback failed:", error);
+      });
+    } else {
+      videoRef.current.pause();
+    }
+  }, [isPlaying]);
+
+  // Timer for hiding controls
   const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
@@ -92,6 +103,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }, 3000);
   }, [isPlaying]);
 
+  // Handle mouse movement for controls
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
@@ -113,20 +125,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     setShowControls(true);
     setIsLoading(true);
     
-    // Generate new key to force iframe reload
-    videoKey.current = Date.now();
-    
     // Simulate loading
     setTimeout(() => {
       setIsLoading(false);
-    }, 1000);
+    }, 500);
   };
 
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
-    if (!isPlaying) {
-      lastUpdateTime.current = Date.now();
-    }
   };
 
   const toggleMute = () => {
@@ -208,31 +214,21 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               )}
             </div>
           ) : (
-            <div className="w-full h-full relative overflow-hidden">
-              {/* Iframe with key to force reload */}
-              <div className="w-full h-full overflow-hidden">
-                <iframe
-                  key={videoKey.current}
-                  src={getMegaUrl(true)}
-                  className="w-full h-full"
-                  frameBorder="0"
-                  allow="autoplay; fullscreen"
-                  allowFullScreen
-                  style={{ 
-                    border: 'none',
-                    outline: 'none',
-                    // Shift the iframe to hide MEGA controls
-                    transform: 'translateY(-30px)',
-                    height: 'calc(100% + 60px)'
-                  }}
-                />
-              </div>
+            <div className="w-full h-full relative">
+              {/* Direct video player */}
+              <video
+                ref={videoRef}
+                src={VIDEO_URL}
+                className="w-full h-full object-contain bg-black"
+                playsInline
+                muted={isMuted}
+                preload="metadata"
+              />
               
               {/* Overlay for controls */}
               <div 
                 className="absolute inset-0 z-10 bg-transparent cursor-pointer"
                 onClick={() => setShowControls(!showControls)}
-                onContextMenu={(e) => e.preventDefault()}
               />
               
               {/* Progress bar */}
@@ -304,7 +300,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           )}
         </div>
 
-        {/* Timer */}
+        {/* Timer countdown */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
