@@ -103,11 +103,15 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     setIsPlaying(true);
     setHasStarted(true);
     setShowTimer(true);
+    // Nascondi i controlli dopo aver iniziato
+    setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 3000);
   };
 
   const togglePlayPause = () => {
-    // Per archive.org non abbiamo controllo diretto del video
-    // Questo sarà principalmente per l'interfaccia
     setIsPlaying(!isPlaying);
   };
 
@@ -180,21 +184,25 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           ) : (
             <div className="w-full h-full relative">
               <iframe
-                src="https://archive.org/embed/lv_0_20250602135445"
+                src="https://archive.org/embed/lv_0_20250602135445?autoplay=1"
                 className="w-full h-full"
                 frameBorder="0"
                 allow="fullscreen"
                 allowFullScreen
                 style={{
                   borderRadius: isFullscreen ? '0' : '0.75rem',
+                  pointerEvents: showControls ? 'auto' : 'none'
                 }}
               />
               
-              {/* Overlay per prevenire il click destro */}
-              <div 
-                className="absolute inset-0 z-10 pointer-events-none"
-                onContextMenu={(e) => e.preventDefault()}
-              />
+              {/* Overlay per nascondere i controlli del video quando necessario */}
+              {!showControls && (
+                <div 
+                  className="absolute inset-0 z-10 bg-transparent cursor-pointer"
+                  onClick={() => setShowControls(true)}
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              )}
               
               {/* Barra di progresso */}
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
