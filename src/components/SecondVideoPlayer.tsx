@@ -19,17 +19,18 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [showControls, setShowControls] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
-  const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
   const isMuted = volume === 0;
 
-  // Direct video URL (replace with your actual video URL)
-  const VIDEO_URL = "https://example.com/path/to/video.mp4";
+  // URL del video di esempio (sostituisci con il tuo URL reale)
+  const VIDEO_URL = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
-  // Listener for fullscreen changes
+  // Listener per fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -46,6 +47,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
     const handleLoadedMetadata = () => {
       setVideoDuration(Math.floor(video.duration));
+      setIsBuffering(false);
     };
 
     const handleTimeUpdate = () => {
@@ -59,14 +61,29 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       onVideoEnd();
     };
 
+    const handleError = () => {
+      console.error("Video error", video.error);
+      setHasError(true);
+      setIsBuffering(false);
+    };
+
+    const handleWaiting = () => setIsBuffering(true);
+    const handleCanPlay = () => setIsBuffering(false);
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('ended', handleEnded);
+    video.addEventListener('error', handleError);
+    video.addEventListener('waiting', handleWaiting);
+    video.addEventListener('canplay', handleCanPlay);
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('error', handleError);
+      video.removeEventListener('waiting', handleWaiting);
+      video.removeEventListener('canplay', handleCanPlay);
     };
   }, [onVideoEnd]);
 
@@ -84,6 +101,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     if (isPlaying) {
       videoRef.current.play().catch(error => {
         console.error("Playback failed:", error);
+        setHasError(true);
       });
     } else {
       videoRef.current.pause();
@@ -102,6 +120,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       }
     }, 3000);
   }, [isPlaying]);
+
+  // Avvia il timer dei controlli dopo il primo play
+  useEffect(() => {
+    if (hasStarted && isPlaying) {
+      setShowControls(true);
+      startControlsTimer();
+    }
+  }, [hasStarted, isPlaying, startControlsTimer]);
 
   // Handle mouse movement for controls
   useEffect(() => {
@@ -125,7 +151,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     setShowControls(true);
     setIsLoading(true);
     
-    // Simulate loading
+    // Simula il caricamento
     setTimeout(() => {
       setIsLoading(false);
     }, 500);
@@ -133,6 +159,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
+    setShowControls(true);
+    startControlsTimer();
   };
 
   const toggleMute = () => {
@@ -175,6 +203,21 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const reloadVideo = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setHasStarted(false);
+    setIsPlaying(false);
+    
+    if (videoRef.current) {
+      videoRef.current.load();
+    }
+    
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+  };
+
   return (
     <>
       <div className="relative w-full max-w-2xl mx-auto space-y-6">
@@ -213,6 +256,28 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 </div>
               )}
             </div>
+          ) : hasError ? (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
+              <div className="bg-red-500/20 rounded-full p-4 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <p className="text-lg font-medium text-center text-white mb-2">Errore nel caricamento del video</p>
+              <p className="text-white/80 text-center mb-6 max-w-md">
+                Si è verificato un problema durante la riproduzione del video. 
+                Controlla la tua connessione internet e riprova.
+              </p>
+              <button
+                onClick={reloadVideo}
+                className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+                Riprova
+              </button>
+            </div>
           ) : (
             <div className="w-full h-full relative">
               {/* Direct video player */}
@@ -222,14 +287,21 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 className="w-full h-full object-contain bg-black"
                 playsInline
                 muted={isMuted}
-                preload="metadata"
+                preload="auto"
               />
               
               {/* Overlay for controls */}
               <div 
                 className="absolute inset-0 z-10 bg-transparent cursor-pointer"
-                onClick={() => setShowControls(!showControls)}
+                onClick={togglePlayPause}
               />
+              
+              {/* Buffering indicator */}
+              {isBuffering && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-30">
+                  <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
               
               {/* Progress bar */}
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
@@ -243,6 +315,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               {showControls && (
                 <div 
                   className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center space-x-4">
                     <button 
@@ -301,7 +374,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         </div>
 
         {/* Timer countdown */}
-        {hasStarted && showTimer && currentTime < videoDuration && (
+        {hasStarted && showTimer && currentTime < videoDuration && !hasError && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
           >
