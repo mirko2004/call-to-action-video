@@ -8,11 +8,12 @@ interface SecondVideoPlayerProps {
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(607); // 10:07 in secondi
+  const [videoDuration] = useState(607); // 10:07 in seconds
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(false);
@@ -22,13 +23,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const lastUpdateTime = useRef<number>(0);
 
   const isMuted = volume === 0;
 
-  // URL di MEGA convertito per l'embed
-  const MEGA_VIDEO_EMBED_URL = `https://mega.nz/embed/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE`;
+  // Updated MEGA embed URL with hidden controls
+  const MEGA_VIDEO_EMBED_URL = `https://mega.nz/embed/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE?autoplay=1&ctrl=0`;
 
-  // Listener per fullscreen changes
+  // Listener for fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -38,14 +40,19 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Gestione del timer personalizzato
+  // Handle timer and video sync
   useEffect(() => {
     if (isPlaying && hasStarted) {
+      lastUpdateTime.current = Date.now();
+      
       progressInterval.current = setInterval(() => {
         setCurrentTime(prev => {
-          const newTime = prev + 1;
+          const now = Date.now();
+          const elapsedSeconds = Math.floor((now - lastUpdateTime.current) / 1000);
+          lastUpdateTime.current = now;
           
-          // Quando raggiungiamo la fine del video
+          const newTime = prev + elapsedSeconds;
+          
           if (newTime >= videoDuration) {
             clearInterval(progressInterval.current!);
             setIsPlaying(false);
@@ -69,7 +76,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     };
   }, [isPlaying, hasStarted, videoDuration, onVideoEnd]);
 
-  // Timer per nascondere i controlli
+  // Handle mouse movement for controls
   const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
@@ -82,7 +89,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }, 3000);
   }, [isPlaying]);
 
-  // Gestisci movimento mouse per controlli
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
@@ -101,17 +107,27 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     setHasStarted(true);
     setShowTimer(true);
     setIsPlaying(true);
-    setShowControls(false);
+    setShowControls(true);
     setIsLoading(true);
     
-    // Simula il caricamento per 2 secondi
+    // Simulate loading
     setTimeout(() => {
       setIsLoading(false);
-    }, 2000);
+      
+      // Force iframe reload to ensure autoplay
+      if (iframeRef.current) {
+        iframeRef.current.src = MEGA_VIDEO_EMBED_URL;
+      }
+    }, 1000);
   };
 
   const togglePlayPause = () => {
-    setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+      lastUpdateTime.current = Date.now();
+    }
   };
 
   const toggleMute = () => {
@@ -134,7 +150,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.log("Errore fullscreen:", error);
+      console.log("Fullscreen error:", error);
     }
   };
 
@@ -194,9 +210,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              {/* Iframe di MEGA con autoplay */}
+              {/* Iframe with key to force reload */}
               <iframe
-                src={`${MEGA_VIDEO_EMBED_URL}?autoplay=1`}
+                ref={iframeRef}
+                key={MEGA_VIDEO_EMBED_URL}
+                src={MEGA_VIDEO_EMBED_URL}
                 className="w-full h-full"
                 frameBorder="0"
                 allow="autoplay; fullscreen"
@@ -207,14 +225,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 }}
               />
               
-              {/* Overlay per gestire i click */}
+              {/* Overlay for controls */}
               <div 
                 className="absolute inset-0 z-10 bg-transparent cursor-pointer"
                 onClick={() => setShowControls(!showControls)}
                 onContextMenu={(e) => e.preventDefault()}
               />
               
-              {/* Barra di progresso sempre visibile */}
+              {/* Progress bar */}
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
                 <div 
                   className="h-full bg-yellow-500 transition-all duration-200"
@@ -222,7 +240,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 ></div>
               </div>
               
-              {/* Controlli personalizzati */}
+              {/* Custom controls */}
               {showControls && (
                 <div 
                   className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
@@ -283,7 +301,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           )}
         </div>
 
-        {/* Timer countdown */}
+        {/* Timer */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
