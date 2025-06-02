@@ -358,7 +358,7 @@ const VideoPlayer = () => {
                   <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
                     <iframe
                       id="vimeo-player"
-                      src={`https://player.vimeo.com/video/1089778981?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0`}
+                      src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0`}
                       frameBorder="0"
                       allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
                       style={{ 
