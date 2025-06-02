@@ -13,17 +13,15 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(0); // Verrà impostato dinamicamente
+  const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Inizia muto per permettere autoplay
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
-
-  // Stato derivato per il muto
-  const isMuted = volume === 0;
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -39,8 +37,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = volume;
+      videoRef.current.muted = isMuted; // Imposta lo stato muto
     }
-  }, [volume]);
+  }, [volume, isMuted]);
 
   // Gestione eventi video
   useEffect(() => {
@@ -51,7 +50,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       setCurrentTime(video.currentTime);
       
       // Controlla se il video è terminato
-      if (video.currentTime >= video.duration) {
+      if (video.currentTime >= video.duration - 0.5) {
         setIsPlaying(false);
         setShowTimer(false);
         setShowFinalPopup(true);
@@ -63,12 +62,18 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       setVideoDuration(video.duration);
     };
 
+    const handleError = () => {
+      console.error("Errore nel caricamento del video", video.error);
+    };
+
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('error', handleError);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('error', handleError);
     };
   }, [onVideoEnd]);
 
@@ -109,19 +114,34 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   const handlePlayClick = () => {
     if (videoRef.current) {
-      videoRef.current.play()
-        .then(() => {
-          setIsPlaying(true);
-          setHasStarted(true);
-          setShowTimer(true);
-          // Nascondi i controlli dopo aver iniziato
-          setTimeout(() => {
-            setShowControls(false);
-          }, 3000);
-        })
-        .catch((error) => {
-          console.error("Errore nella riproduzione del video:", error);
-        });
+      // Strategia per aggirare le restrizioni di autoplay
+      const playPromise = videoRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            setHasStarted(true);
+            setShowTimer(true);
+            // Smuta dopo l'avvio
+            setIsMuted(false);
+            
+            // Nascondi i controlli dopo 3 secondi
+            setTimeout(() => setShowControls(false), 3000);
+          })
+          .catch(error => {
+            console.error("Errore nella riproduzione:", error);
+            // Fallback per browser che richiedono interazione diretta
+            videoRef.current!.muted = true;
+            videoRef.current!.play()
+              .then(() => {
+                setIsPlaying(true);
+                setHasStarted(true);
+                setShowTimer(true);
+                setTimeout(() => setShowControls(false), 3000);
+              });
+          });
+      }
     }
   };
 
@@ -132,6 +152,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       } else {
         videoRef.current.play();
       }
+      setIsPlaying(!isPlaying);
     }
   };
 
@@ -139,8 +160,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     if (volume > 0) {
       previousVolumeRef.current = volume;
       setVolume(0);
+      setIsMuted(true);
     } else {
       setVolume(previousVolumeRef.current);
+      setIsMuted(false);
     }
   };
 
@@ -162,6 +185,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
+    setIsMuted(newVolume === 0);
   };
 
   const calculateProgress = () => {
@@ -178,7 +202,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   return (
     <>
       <div className="relative w-full max-w-2xl mx-auto space-y-6">
-        {/* Testo sopra il video */}
         <div className="text-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <p className="text-white/70 text-sm">
             🎯 Questo è il contenuto finale - dopo aver guardato tutto il video si aprirà l'accesso alle selezioni
@@ -206,6 +229,15 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   </p>
                 </div>
               </div>
+              {/* Video nascosto per precaricamento */}
+              <video
+                ref={videoRef}
+                src="https://archive.org/download/lv_0_20250602135445/lv_0_20250602135445.mp4"
+                className="hidden"
+                preload="auto"
+                muted // Necessario per autoplay
+                playsInline // Necessario per iOS
+              />
             </div>
           ) : (
             <div className="w-full h-full relative">
@@ -213,16 +245,16 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 ref={videoRef}
                 src="https://archive.org/download/lv_0_20250602135445/lv_0_20250602135445.mp4"
                 className="w-full h-full object-cover"
+                muted={isMuted}
+                playsInline
               />
               
-              {/* Overlay completo per gestire i click e nascondere i controlli */}
               <div 
                 className="absolute inset-0 z-10 bg-transparent cursor-pointer"
                 onClick={() => setShowControls(!showControls)}
                 onContextMenu={(e) => e.preventDefault()}
               />
               
-              {/* Barra di progresso personalizzata */}
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
                 <div 
                   className="h-full bg-yellow-500 transition-all duration-200"
@@ -230,7 +262,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 ></div>
               </div>
               
-              {/* Controlli video personalizzati */}
               {(showControls || !isPlaying) && (
                 <div 
                   className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
@@ -291,7 +322,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           )}
         </div>
 
-        {/* Timer sincronizzato con la durata reale del video */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
@@ -309,7 +339,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         )}
       </div>
 
-      {/* Final Popup */}
       {showFinalPopup && <FinalPopup />}
     </>
   );
