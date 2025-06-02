@@ -8,7 +8,6 @@ interface SecondVideoPlayerProps {
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
@@ -28,7 +27,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const isMuted = volume === 0;
 
   // Updated MEGA embed URL with hidden controls
-  const MEGA_VIDEO_EMBED_URL = `https://mega.nz/embed/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE?autoplay=1&ctrl=0`;
+  const MEGA_VIDEO_EMBED_URL = `https://mega.nz/embed/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE?autoplay=1&nectrl=1`;
 
   // Listener for fullscreen changes
   useEffect(() => {
@@ -113,19 +112,12 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     // Simulate loading
     setTimeout(() => {
       setIsLoading(false);
-      
-      // Force iframe reload to ensure autoplay
-      if (iframeRef.current) {
-        iframeRef.current.src = MEGA_VIDEO_EMBED_URL;
-      }
     }, 1000);
   };
 
   const togglePlayPause = () => {
-    if (isPlaying) {
-      setIsPlaying(false);
-    } else {
-      setIsPlaying(true);
+    setIsPlaying(!isPlaying);
+    if (!isPlaying) {
       lastUpdateTime.current = Date.now();
     }
   };
@@ -209,21 +201,24 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               )}
             </div>
           ) : (
-            <div className="w-full h-full relative">
-              {/* Iframe with key to force reload */}
-              <iframe
-                ref={iframeRef}
-                key={MEGA_VIDEO_EMBED_URL}
-                src={MEGA_VIDEO_EMBED_URL}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="autoplay; fullscreen"
-                allowFullScreen
-                style={{ 
-                  border: 'none',
-                  outline: 'none'
-                }}
-              />
+            <div className="w-full h-full relative overflow-hidden">
+              {/* Iframe container with hidden overflow */}
+              <div className="w-full h-full overflow-hidden">
+                <iframe
+                  src={MEGA_VIDEO_EMBED_URL}
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                  style={{ 
+                    border: 'none',
+                    outline: 'none',
+                    // Shift the iframe to hide MEGA controls
+                    transform: 'translateY(-30px)',
+                    height: 'calc(100% + 60px)'
+                  }}
+                />
+              </div>
               
               {/* Overlay for controls */}
               <div 
