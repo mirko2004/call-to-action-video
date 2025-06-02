@@ -1,30 +1,43 @@
-
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
-import FinalPopup from "./FinalPopup";
+
+// Componente FinalPopup semplificato per il test
+const FinalPopup = () => (
+  <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-lg">
+      <h2 className="text-xl font-bold">Video Completato!</h2>
+      <p>Accesso alle selezioni sbloccato</p>
+    </div>
+  </div>
+);
 
 interface SecondVideoPlayerProps {
   onVideoEnd: () => void;
 }
 
-const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
+const SecondVideoPlayer = ({ onVideoEnd = () => {} }: SecondVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(0); // Verrà impostato dinamicamente
+  const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
 
   // Stato derivato per il muto
   const isMuted = volume === 0;
+
+  // URL di test - sostituisci con il tuo URL
+  const videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -62,14 +75,52 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
     const handleLoadedMetadata = () => {
       setVideoDuration(video.duration);
+      setIsLoading(false);
+      console.log("Video caricato, durata:", video.duration);
+    };
+
+    const handleCanPlay = () => {
+      setIsLoading(false);
+      console.log("Video pronto per la riproduzione");
+    };
+
+    const handleError = (e: any) => {
+      console.error("Errore video:", e);
+      setVideoError("Errore nel caricamento del video");
+      setIsLoading(false);
+    };
+
+    const handleLoadStart = () => {
+      setIsLoading(true);
+      setVideoError(null);
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+      console.log("Video in riproduzione");
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+      console.log("Video in pausa");
     };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('error', handleError);
+    video.addEventListener('loadstart', handleLoadStart);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('error', handleError);
+      video.removeEventListener('loadstart', handleLoadStart);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
     };
   }, [onVideoEnd]);
 
@@ -108,30 +159,41 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isPlaying, hasStarted, startControlsTimer]);
 
-  const handlePlayClick = () => {
+  const handlePlayClick = async () => {
     if (videoRef.current) {
-      videoRef.current.play()
-        .then(() => {
-          setIsPlaying(true);
-          setHasStarted(true);
-          setShowTimer(true);
-          // Nascondi i controlli dopo aver iniziato
-          setTimeout(() => {
-            setShowControls(false);
-          }, 3000);
-        })
-        .catch((error) => {
-          console.error("Errore nella riproduzione del video:", error);
-        });
+      setIsLoading(true);
+      try {
+        // Forza il caricamento del video prima di riprodurlo
+        await videoRef.current.load();
+        await videoRef.current.play();
+        
+        setIsPlaying(true);
+        setHasStarted(true);
+        setShowTimer(true);
+        setVideoError(null);
+        
+        // Nascondi i controlli dopo aver iniziato
+        setTimeout(() => {
+          setShowControls(false);
+        }, 3000);
+      } catch (error) {
+        console.error("Errore nella riproduzione del video:", error);
+        setVideoError("Impossibile riprodurre il video. Verifica l'URL o la connessione.");
+        setIsLoading(false);
+      }
     }
   };
 
-  const togglePlayPause = () => {
+  const togglePlayPause = async () => {
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
+      try {
+        if (isPlaying) {
+          videoRef.current.pause();
+        } else {
+          await videoRef.current.play();
+        }
+      } catch (error) {
+        console.error("Errore toggle play/pause:", error);
       }
     }
   };
@@ -178,13 +240,22 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   return (
     <>
-      <div className="relative w-full max-w-2xl mx-auto space-y-6">
+      <div className="relative w-full max-w-2xl mx-auto space-y-6 p-4">
         {/* Testo sopra il video */}
         <div className="text-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          <p className="text-white/70 text-sm">
+          <p className="text-gray-700 text-sm">
             🎯 Questo è il contenuto finale - dopo aver guardato tutto il video si aprirà l'accesso alle selezioni
           </p>
         </div>
+
+        {/* Messaggio di errore */}
+        {videoError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <strong>Errore:</strong> {videoError}
+            <br />
+            <small>URL utilizzato: {videoUrl}</small>
+          </div>
+        )}
 
         <div 
           ref={containerRef}
@@ -197,13 +268,19 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer gap-4 transition-all duration-300 hover:scale-105" 
                 onClick={handlePlayClick}
               >
-                <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
-                </div>
+                {isLoading ? (
+                  <div className="bg-gray-400 rounded-full p-6 shadow-lg">
+                    <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                    <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
+                  </div>
+                )}
                 <div className="text-center space-y-2">
-                  <p className="text-lg font-medium">Video Esclusivo Finale</p>
+                  <p className="text-lg font-medium text-white">Video Esclusivo Finale</p>
                   <p className="text-sm text-white/80">
-                    Clicca play per accedere alle selezioni
+                    {isLoading ? "Caricamento..." : "Clicca play per accedere alle selezioni"}
                   </p>
                 </div>
               </div>
@@ -212,8 +289,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             <div className="w-full h-full relative">
               <video
                 ref={videoRef}
-                src="https://archive.org/download/lv_0_20250602135445/lv_0_20250602135445.mp4"
+                src={videoUrl}
                 className="w-full h-full object-cover"
+                preload="metadata"
+                playsInline
+                crossOrigin="anonymous"
               />
               
               {/* Overlay completo per gestire i click e nascondere i controlli */}
@@ -303,7 +383,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 {formatTime(videoDuration - currentTime)} rimanenti
               </span>
             </div>
-            <p className="text-white/90 text-sm leading-relaxed">
+            <p className="text-gray-700 text-sm leading-relaxed">
               🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra poco
             </p>
           </div>
@@ -316,4 +396,13 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   );
 };
 
-export default SecondVideoPlayer;
+// Componente di test
+const App = () => {
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <SecondVideoPlayer onVideoEnd={() => console.log("Video terminato!")} />
+    </div>
+  );
+};
+
+export default App;
