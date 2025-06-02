@@ -321,8 +321,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               </span>
             </div>
             <p className="text-white/90 text-sm leading-relaxed">
-              🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra poco<br />
-              <span className="text-white/70">Questo è l'ultimo step prima dell'opportunità esclusiva</span>
+              🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra poco
             </p>
           </div>
         )}
