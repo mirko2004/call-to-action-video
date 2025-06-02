@@ -14,12 +14,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(607); // 10:07 = 607 secondi (dalla tua immagine)
+  const [videoDuration, setVideoDuration] = useState(0); // Verrà impostato dinamicamente
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
@@ -37,32 +36,42 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Simula l'aggiornamento del tempo corrente sincronizzato con il video reale
+  // Aggiorna il volume del video quando cambia
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isPlaying && hasStarted) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          const newTime = prev >= videoDuration - 1 ? videoDuration : prev + 1;
-          
-          if (newTime >= videoDuration) {
-            setIsPlaying(false);
-            setShowTimer(false);
-            setShowFinalPopup(true);
-            onVideoEnd();
-          }
-          
-          // Force update per mobile
-          setForceUpdate(count => count + 1);
-          
-          return newTime;
-        });
-      }, 1000);
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
     }
-    
-    return () => clearInterval(interval);
-  }, [isPlaying, hasStarted, videoDuration, onVideoEnd]);
+  }, [volume]);
+
+  // Gestione eventi video
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+      
+      // Controlla se il video è terminato
+      if (video.currentTime >= video.duration) {
+        setIsPlaying(false);
+        setShowTimer(false);
+        setShowFinalPopup(true);
+        onVideoEnd();
+      }
+    };
+
+    const handleLoadedMetadata = () => {
+      setVideoDuration(video.duration);
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [onVideoEnd]);
 
   // Timer per nascondere i controlli
   const startControlsTimer = useCallback(() => {
@@ -100,17 +109,31 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   }, [isPlaying, hasStarted, startControlsTimer]);
 
   const handlePlayClick = () => {
-    setIsPlaying(true);
-    setHasStarted(true);
-    setShowTimer(true);
-    // Nascondi i controlli dopo aver iniziato
-    setTimeout(() => {
-      setShowControls(false);
-    }, 3000);
+    if (videoRef.current) {
+      videoRef.current.play()
+        .then(() => {
+          setIsPlaying(true);
+          setHasStarted(true);
+          setShowTimer(true);
+          // Nascondi i controlli dopo aver iniziato
+          setTimeout(() => {
+            setShowControls(false);
+          }, 3000);
+        })
+        .catch((error) => {
+          console.error("Errore nella riproduzione del video:", error);
+        });
+    }
   };
 
   const togglePlayPause = () => {
-    setIsPlaying(!isPlaying);
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+    }
   };
 
   const toggleMute = () => {
@@ -133,7 +156,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.log("Fullscreen error:", error);
+      console.log("Errore fullscreen:", error);
     }
   };
 
@@ -149,7 +172,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -187,16 +210,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              <iframe
-                src="https://archive.org/embed/lv_0_20250602135445?autoplay=1&controls=0"
-                className="w-full h-full"
-                frameBorder="0"
-                allow="fullscreen"
-                allowFullScreen
-                style={{
-                  borderRadius: isFullscreen ? '0' : '0.75rem',
-                  pointerEvents: 'none' // Disabilita completamente i controlli
-                }}
+              <video
+                ref={videoRef}
+                src="https://archive.org/download/lv_0_20250602135445/lv_0_20250602135445.mp4"
+                className="w-full h-full object-cover"
               />
               
               {/* Overlay completo per gestire i click e nascondere i controlli */}
@@ -279,7 +296,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
-            key={`timer-${forceUpdate}`}
           >
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-red-400 animate-pulse" />
