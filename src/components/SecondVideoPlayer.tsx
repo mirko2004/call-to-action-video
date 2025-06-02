@@ -23,11 +23,15 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const previousVolumeRef = useRef(0.7);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
   const lastUpdateTime = useRef<number>(0);
+  const videoKey = useRef(Date.now()); // Key to force iframe reload
 
   const isMuted = volume === 0;
 
   // Updated MEGA embed URL with hidden controls
-  const MEGA_VIDEO_EMBED_URL = `https://mega.nz/embed/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE?autoplay=1&nectrl=1`;
+  const getMegaUrl = (autoplay = false) => {
+    const base = "https://mega.nz/embed/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE";
+    return `${base}?nectrl=1${autoplay ? "&autoplay=1" : ""}`;
+  };
 
   // Listener for fullscreen changes
   useEffect(() => {
@@ -108,6 +112,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     setIsPlaying(true);
     setShowControls(true);
     setIsLoading(true);
+    
+    // Generate new key to force iframe reload
+    videoKey.current = Date.now();
     
     // Simulate loading
     setTimeout(() => {
@@ -202,10 +209,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           ) : (
             <div className="w-full h-full relative overflow-hidden">
-              {/* Iframe container with hidden overflow */}
+              {/* Iframe with key to force reload */}
               <div className="w-full h-full overflow-hidden">
                 <iframe
-                  src={MEGA_VIDEO_EMBED_URL}
+                  key={videoKey.current}
+                  src={getMegaUrl(true)}
                   className="w-full h-full"
                   frameBorder="0"
                   allow="autoplay; fullscreen"
