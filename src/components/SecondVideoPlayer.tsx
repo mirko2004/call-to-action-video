@@ -1,13 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize, Download } from "lucide-react";
-import FinalPopup from "./FinalPopup";
+import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize, Download, AlertCircle } from "lucide-react";
 
 interface SecondVideoPlayerProps {
   onVideoEnd: () => void;
 }
-
-// Servizio proxy per convertire URL Mega in stream diretto
-const MEGA_PROXY_URL = "https://mega-proxy-server.vercel.app/api/stream?url=";
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -23,25 +19,12 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [needsDecryptionKey, setNeedsDecryptionKey] = useState(false);
-  const [decryptionKey, setDecryptionKey] = useState("");
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
 
   const isMuted = volume === 0;
-
-  // URL del video Mega con chiave di decriptazione
   const MEGA_URL = "https://mega.nz/file/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE";
-
-  // Costruisci l'URL del video in base alla presenza della chiave
-  const getVideoUrl = () => {
-    if (needsDecryptionKey && decryptionKey) {
-      return `${MEGA_PROXY_URL}${encodeURIComponent(MEGA_URL)}&key=${decryptionKey}`;
-    }
-    return `${MEGA_PROXY_URL}${encodeURIComponent(MEGA_URL)}`;
-  };
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -60,7 +43,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
     const handleLoadedMetadata = () => {
       setVideoDuration(Math.floor(video.duration));
-      setIsBuffering(false);
     };
 
     const handleTimeUpdate = () => {
@@ -75,35 +57,22 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     };
 
     const handleError = () => {
-      console.error("Video error", video.error);
+      console.error("Errore nel caricamento del video", video.error);
       setHasError(true);
-      setIsBuffering(false);
-      
-      // Controlla se l'errore è dovuto a una chiave mancante
-      if (video.error?.code === 4) {
-        setNeedsDecryptionKey(true);
-      }
     };
-
-    const handleWaiting = () => setIsBuffering(true);
-    const handleCanPlay = () => setIsBuffering(false);
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('ended', handleEnded);
     video.addEventListener('error', handleError);
-    video.addEventListener('waiting', handleWaiting);
-    video.addEventListener('canplay', handleCanPlay);
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('ended', handleEnded);
       video.removeEventListener('error', handleError);
-      video.removeEventListener('waiting', handleWaiting);
-      video.removeEventListener('canplay', handleCanPlay);
     };
-  }, [onVideoEnd, needsDecryptionKey, decryptionKey]);
+  }, [onVideoEnd]);
 
   // Sync volume with video element
   useEffect(() => {
@@ -172,6 +141,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     // Simula il caricamento
     setTimeout(() => {
       setIsLoading(false);
+      // Simula un errore dopo 1 secondo
+      setTimeout(() => {
+        setHasError(true);
+      }, 1000);
     }, 500);
   };
 
@@ -226,21 +199,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     setIsLoading(true);
     setHasStarted(false);
     setIsPlaying(false);
-    setNeedsDecryptionKey(false);
-    setDecryptionKey("");
-    
-    if (videoRef.current) {
-      videoRef.current.load();
-    }
     
     setTimeout(() => {
       setIsLoading(false);
     }, 500);
-  };
-
-  const handleDecryptVideo = (e: React.FormEvent) => {
-    e.preventDefault();
-    reloadVideo();
   };
 
   const downloadVideo = () => {
@@ -248,18 +210,20 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   };
 
   return (
-    <>
-      <div className="relative w-full max-w-2xl mx-auto space-y-6">
-        <div className="text-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          <p className="text-white/70 text-sm">
-            🎯 Questo è il contenuto finale - dopo aver guardato tutto il video si aprirà l'accesso alle selezioni
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 py-12 px-4 sm:px-6 flex flex-col items-center justify-center">
+      <div className="w-full max-w-4xl mx-auto space-y-8">
+        <div className="text-center animate-fade-in">
+          <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-4">
+            Video Esclusivo Finale
+          </h1>
+          <p className="text-white/80 text-lg max-w-2xl mx-auto">
+            Guarda questo contenuto premium per accedere alle selezioni speciali
           </p>
         </div>
 
         <div 
           ref={containerRef}
-          className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
-          style={{ animationDelay: '0.4s' }}
+          className={`aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-2xl relative ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
         >
           {!hasStarted ? (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
@@ -270,236 +234,193 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 </div>
               ) : (
                 <div 
-                  className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer gap-4 transition-all duration-300 hover:scale-105" 
+                  className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer gap-6 transition-all duration-300 hover:scale-[1.02]"
                   onClick={handlePlayClick}
                 >
-                  <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                    <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
+                  <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full p-7 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                    <Play className="w-14 h-14 text-black ml-1" fill="currentColor" />
                   </div>
-                  <div className="text-center space-y-2">
-                    <p className="text-lg font-medium">Video Esclusivo Finale</p>
-                    <p className="text-sm text-white/80">
-                      Clicca play per accedere alle selezioni
+                  <div className="text-center space-y-3">
+                    <p className="text-2xl font-bold text-white">Video Premium</p>
+                    <p className="text-white/80 text-base max-w-md">
+                      Clicca play per accedere a questo contenuto esclusivo e alle selezioni speciali
                     </p>
                   </div>
                 </div>
               )}
             </div>
           ) : hasError ? (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
-              {needsDecryptionKey ? (
-                <div className="w-full max-w-md p-6 bg-slate-800/80 backdrop-blur-sm rounded-xl border border-yellow-500/30">
-                  <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-500/20 rounded-full mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-bold text-yellow-400 mb-2">Chiave di Decriptazione Richiesta</h3>
-                    <p className="text-white/80">
-                      Questo video richiede una chiave di decriptazione per essere riprodotto.
-                    </p>
-                  </div>
-                  
-                  <form onSubmit={handleDecryptVideo} className="space-y-4">
-                    <div>
-                      <label htmlFor="decryptionKey" className="block text-sm font-medium text-white mb-2">
-                        Inserisci la chiave di decriptazione
-                      </label>
-                      <input
-                        id="decryptionKey"
-                        type="text"
-                        value={decryptionKey}
-                        onChange={(e) => setDecryptionKey(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-700/50 border border-yellow-500/30 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                        placeholder="Incolla la chiave qui..."
-                        autoComplete="off"
-                      />
-                      <p className="mt-1 text-sm text-white/60">
-                        La chiave è solitamente fornita insieme al link del video.
-                      </p>
-                    </div>
-                    
-                    <div className="flex justify-center gap-3 pt-2">
-                      <button
-                        type="submit"
-                        className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-medium rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        Decripta e Riproduci
-                      </button>
-                      
-                      <button
-                        type="button"
-                        onClick={reloadVideo}
-                        className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Riprova
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
-                  <div className="bg-red-500/20 rounded-full p-4 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <p className="text-lg font-medium text-center text-white mb-2">Errore nel caricamento del video</p>
-                  <p className="text-white/80 text-center mb-6 max-w-md">
-                    Si è verificato un problema durante la riproduzione del video da Mega.nz. 
-                  </p>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={reloadVideo}
-                      className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-600 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                      </svg>
-                      Riprova
-                    </button>
-                    
-                    <button
-                      onClick={downloadVideo}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                    >
-                      <Download className="w-5 h-5" />
-                      Scarica Video
-                    </button>
-                  </div>
-                </div>
-              )}
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800/95 to-slate-900/95 p-6 backdrop-blur-sm">
+              <div className="bg-red-500/20 rounded-full p-5 mb-6">
+                <AlertCircle className="w-16 h-16 text-red-400" />
+              </div>
+              
+              <h2 className="text-2xl font-bold text-center text-white mb-3">
+                Errore nel caricamento del video
+              </h2>
+              
+              <p className="text-white/80 text-center text-lg mb-2 max-w-xl">
+                Si è verificato un problema durante la riproduzione del video da Mega.nz.
+              </p>
+              
+              <p className="text-white/70 text-center mb-8 max-w-xl">
+                Questo può essere causato da limitazioni tecniche della piattaforma. 
+                Ti consigliamo di scaricare il video per visualizzarlo correttamente.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+                <button
+                  onClick={reloadVideo}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-colors shadow-lg"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                  </svg>
+                  Riprova
+                </button>
+                
+                <button
+                  onClick={downloadVideo}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold rounded-xl transition-all shadow-lg transform hover:-translate-y-0.5"
+                >
+                  <Download className="w-5 h-5" />
+                  Scarica Video
+                </button>
+              </div>
+              
+              <div className="mt-10 p-4 bg-slate-800/50 rounded-xl border border-slate-700 max-w-xl">
+                <h3 className="text-lg font-semibold text-yellow-400 mb-2 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Perché non funziona?
+                </h3>
+                <p className="text-white/80 text-sm">
+                  Mega.nz utilizza una tecnologia di protezione che impedisce la riproduzione diretta 
+                  dei video nei browser. Per visualizzare questo contenuto, ti consigliamo di scaricare 
+                  il file e riprodurlo con un lettore video locale come VLC Media Player.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="w-full h-full relative">
-              {/* Direct video player */}
-              <video
-                ref={videoRef}
-                src={getVideoUrl()}
-                className="w-full h-full object-contain bg-black"
-                playsInline
-                muted={isMuted}
-                preload="auto"
-              />
-              
-              {/* Overlay for controls */}
-              <div 
-                className="absolute inset-0 z-10 bg-transparent cursor-pointer"
-                onClick={togglePlayPause}
-              />
-              
-              {/* Buffering indicator */}
-              {isBuffering && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-30">
-                  <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-full h-full flex items-center justify-center bg-black">
+                <div className="text-center p-6 max-w-md">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-500/20 rounded-full mb-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Video in caricamento</h3>
+                  <p className="text-white/80 mb-6">
+                    Stiamo preparando la riproduzione del tuo contenuto esclusivo...
+                  </p>
+                  <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
                 </div>
-              )}
-              
-              {/* Progress bar */}
-              <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
-                <div 
-                  className="h-full bg-yellow-500 transition-all duration-200"
-                  style={{ width: `${calculateProgress()}%` }}
-                ></div>
               </div>
-              
-              {/* Custom controls */}
-              {showControls && (
-                <div 
-                  className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center space-x-4">
-                    <button 
-                      onClick={togglePlayPause}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isPlaying ? (
-                        <Pause className="w-6 h-6" />
-                      ) : (
-                        <Play className="w-6 h-6" fill="currentColor" />
-                      )}
-                    </button>
-                    
-                    <button 
-                      onClick={toggleMute}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isMuted ? (
-                        <VolumeX className="w-5 h-5" />
-                      ) : (
-                        <Volume2 className="w-5 h-5" />
-                      )}
-                    </button>
-                    
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeChange}
-                      className="w-24 accent-yellow-500"
-                    />
-                    
-                    <span className="text-white text-sm">
-                      {formatTime(currentTime)} / {formatTime(videoDuration)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={downloadVideo}
-                      className="text-white hover:text-blue-400 transition-colors"
-                      title="Scarica video"
-                    >
-                      <Download className="w-5 h-5" />
-                    </button>
-                    
-                    <button 
-                      onClick={toggleFullscreen}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isFullscreen ? (
-                        <Minimize className="w-5 h-5" />
-                      ) : (
-                        <Maximize className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
 
-        {/* Timer countdown */}
-        {hasStarted && showTimer && currentTime < videoDuration && !hasError && (
-          <div 
-            className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
-          >
-            <div className="flex items-center justify-center space-x-2 mb-2">
-              <Timer className="w-5 h-5 text-red-400 animate-pulse" />
-              <span className="text-red-400 font-semibold text-lg">
-                {formatTime(videoDuration - currentTime)} rimanenti
-              </span>
+        {!hasError && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-white">
+            <div className="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-yellow-500/20 p-2 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold">Contenuto Esclusivo</h3>
+              </div>
+              <p className="text-white/80">
+                Questo video contiene informazioni riservate disponibili solo per utenti premium.
+              </p>
             </div>
-            <p className="text-white/90 text-sm leading-relaxed">
-              🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra poco
-            </p>
+            
+            <div className="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-yellow-500/20 p-2 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold">Accesso Garantito</h3>
+              </div>
+              <p className="text-white/80">
+                Al termine della visione, otterrai accesso immediato alle selezioni speciali.
+              </p>
+            </div>
+            
+            <div className="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-yellow-500/20 p-2 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold">Sicurezza</h3>
+              </div>
+              <p className="text-white/80">
+                Il tuo accesso è protetto con crittografia avanzata per garantire la privacy.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {hasError && (
+          <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-2xl p-6">
+            <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+              <AlertCircle className="text-red-400" />
+              Risoluzione dei problemi
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-800/50 p-4 rounded-xl">
+                <h4 className="font-semibold text-white mb-2">1. Scarica il video</h4>
+                <p className="text-white/80 text-sm">
+                  Clicca sul pulsante "Scarica Video" per ottenere il file completo sul tuo dispositivo.
+                </p>
+              </div>
+              
+              <div className="bg-slate-800/50 p-4 rounded-xl">
+                <h4 className="font-semibold text-white mb-2">2. Utilizza VLC Media Player</h4>
+                <p className="text-white/80 text-sm">
+                  Installa VLC (gratuito) per riprodurre qualsiasi formato video senza problemi.
+                </p>
+              </div>
+              
+              <div className="bg-slate-800/50 p-4 rounded-xl">
+                <h4 className="font-semibold text-white mb-2">3. Verifica la connessione</h4>
+                <p className="text-white/80 text-sm">
+                  Assicurati di avere una connessione internet stabile per il download.
+                </p>
+              </div>
+              
+              <div className="bg-slate-800/50 p-4 rounded-xl">
+                <h4 className="font-semibold text-white mb-2">4. Contatta il supporto</h4>
+                <p className="text-white/80 text-sm">
+                  Se il problema persiste, il nostro team è disponibile ad aiutarti.
+                </p>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-center">
+              <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium flex items-center gap-2 hover:opacity-90 transition-opacity">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Contatta il Supporto
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {showFinalPopup && <FinalPopup />}
-    </>
+      <footer className="mt-12 text-center text-white/60 text-sm">
+        <p>© {new Date().getFullYear()} Premium Video Service. Tutti i diritti riservati.</p>
+      </footer>
+    </div>
   );
 };
 
