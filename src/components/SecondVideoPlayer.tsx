@@ -7,16 +7,23 @@ interface SecondVideoPlayerProps {
 }
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(300); // 5 minuti come default, modificabile
+  const [videoDuration, setVideoDuration] = useState(0); // Verrà impostato dinamicamente
   const [currentTime, setCurrentTime] = useState(0);
+  const [volume, setVolume] = useState(0.7);
+  const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  const timerInterval = useRef<NodeJS.Timeout | null>(null);
+  const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
+  const previousVolumeRef = useRef(0.7);
+
+  // Stato derivato per il muto
+  const isMuted = volume === 0;
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -28,33 +35,113 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Timer personalizzato per tracciare il progresso
+  // Aggiorna il volume del video quando cambia
   useEffect(() => {
-    if (hasStarted && showTimer) {
-      timerInterval.current = setInterval(() => {
-        setCurrentTime(prev => {
-          const newTime = prev + 1;
-          if (newTime >= videoDuration) {
-            setShowTimer(false);
-            setShowFinalPopup(true);
-            onVideoEnd();
-            return videoDuration;
-          }
-          return newTime;
-        });
-      }, 1000);
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
     }
+  }, [volume]);
 
-    return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
+  // Gestione eventi video
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+      
+      // Controlla se il video è terminato
+      if (video.currentTime >= video.duration) {
+        setIsPlaying(false);
+        setShowTimer(false);
+        setShowFinalPopup(true);
+        onVideoEnd();
       }
     };
-  }, [hasStarted, showTimer, videoDuration, onVideoEnd]);
+
+    const handleLoadedMetadata = () => {
+      setVideoDuration(video.duration);
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [onVideoEnd]);
+
+  // Timer per nascondere i controlli
+  const startControlsTimer = useCallback(() => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+    }
+    
+    controlsTimeout.current = setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 3000);
+  }, [isPlaying]);
+
+  const clearControlsTimer = useCallback(() => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+      controlsTimeout.current = null;
+    }
+  }, []);
+
+  // Gestisci il movimento del mouse per mostrare i controlli
+  useEffect(() => {
+    const handleMouseMove = () => {
+      if (hasStarted) {
+        setShowControls(true);
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      }
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isPlaying, hasStarted, startControlsTimer]);
 
   const handlePlayClick = () => {
-    setHasStarted(true);
-    setShowTimer(true);
+    if (videoRef.current) {
+      videoRef.current.play()
+        .then(() => {
+          setIsPlaying(true);
+          setHasStarted(true);
+          setShowTimer(true);
+          // Nascondi i controlli dopo aver iniziato
+          setTimeout(() => {
+            setShowControls(false);
+          }, 3000);
+        })
+        .catch((error) => {
+          console.error("Errore nella riproduzione del video:", error);
+        });
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+    }
+  };
+
+  const toggleMute = () => {
+    if (volume > 0) {
+      previousVolumeRef.current = volume;
+      setVolume(0);
+    } else {
+      setVolume(previousVolumeRef.current);
+    }
   };
 
   const toggleFullscreen = async () => {
@@ -70,6 +157,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     } catch (error) {
       console.log("Errore fullscreen:", error);
     }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
   };
 
   const calculateProgress = () => {
@@ -117,14 +209,17 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              {/* Archive.org Embed */}
-              <iframe
-                ref={iframeRef}
-                src="https://archive.org/embed/lv_0_20250602135445"
-                className="w-full h-full"
-                frameBorder="0"
-                allowFullScreen
-                allow="autoplay; fullscreen"
+              <video
+                ref={videoRef}
+                src="https://archive.org/download/lv_0_20250602135445/lv_0_20250602135445.mp4"
+                className="w-full h-full object-cover"
+              />
+              
+              {/* Overlay completo per gestire i click e nascondere i controlli */}
+              <div 
+                className="absolute inset-0 z-10 bg-transparent cursor-pointer"
+                onClick={() => setShowControls(!showControls)}
+                onContextMenu={(e) => e.preventDefault()}
               />
               
               {/* Barra di progresso personalizzata */}
@@ -135,24 +230,68 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 ></div>
               </div>
               
-              {/* Controlli personalizzati overlay */}
-              <div className="absolute top-4 right-4 z-20">
-                <button 
-                  onClick={toggleFullscreen}
-                  className="bg-black/50 text-white hover:text-yellow-400 transition-colors p-2 rounded-lg backdrop-blur-sm"
+              {/* Controlli video personalizzati */}
+              {(showControls || !isPlaying) && (
+                <div 
+                  className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
                 >
-                  {isFullscreen ? (
-                    <Minimize className="w-5 h-5" />
-                  ) : (
-                    <Maximize className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
+                  <div className="flex items-center space-x-4">
+                    <button 
+                      onClick={togglePlayPause}
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-6 h-6" />
+                      ) : (
+                        <Play className="w-6 h-6" fill="currentColor" />
+                      )}
+                    </button>
+                    
+                    <button 
+                      onClick={toggleMute}
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      {isMuted ? (
+                        <VolumeX className="w-5 h-5" />
+                      ) : (
+                        <Volume2 className="w-5 h-5" />
+                      )}
+                    </button>
+                    
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      className="w-24 accent-yellow-500"
+                    />
+                    
+                    <span className="text-white text-sm">
+                      {formatTime(currentTime)} / {formatTime(videoDuration)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={toggleFullscreen}
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      {isFullscreen ? (
+                        <Minimize className="w-5 h-5" />
+                      ) : (
+                        <Maximize className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Timer sincronizzato con la durata del video */}
+        {/* Timer sincronizzato con la durata reale del video */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
@@ -166,23 +305,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             <p className="text-white/90 text-sm leading-relaxed">
               🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra poco
             </p>
-          </div>
-        )}
-
-        {/* Messaggio di progresso */}
-        {hasStarted && showTimer && (
-          <div className="text-center">
-            <div className="bg-slate-800/50 rounded-lg p-3 backdrop-blur-sm">
-              <p className="text-white/80 text-sm">
-                Progresso: {formatTime(currentTime)} / {formatTime(videoDuration)}
-              </p>
-              <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${calculateProgress()}%` }}
-                ></div>
-              </div>
-            </div>
           </div>
         )}
       </div>
