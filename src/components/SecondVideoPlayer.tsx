@@ -18,14 +18,15 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
 
   const isMuted = volume === 0;
 
-  // Link MEGA del video
-  const MEGA_VIDEO_URL = "https://mega.nz/file/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE";
+  // Link MEGA convertito per la riproduzione diretta
+  const MEGA_VIDEO_URL = "https://mega.nz/embed/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE";
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -46,7 +47,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       setCurrentTime(video.currentTime);
       
       // Controllo fine video
-      if (video.currentTime >= videoDuration) {
+      if (video.currentTime >= videoDuration - 1) {
         setIsPlaying(false);
         setShowTimer(false);
         setShowFinalPopup(true);
@@ -56,14 +57,22 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
     const handleLoadedMetadata = () => {
       setVideoDuration(video.duration);
+      setIsLoading(false);
+    };
+
+    const handleError = () => {
+      setIsLoading(false);
+      console.error("Errore nel caricamento del video");
     };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('error', handleError);
     
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('error', handleError);
     };
   }, [videoDuration, onVideoEnd]);
 
@@ -98,6 +107,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const handlePlayClick = () => {
     const video = videoRef.current;
     if (video) {
+      setIsLoading(true);
+      
+      // Forza il caricamento del video prima della riproduzione
+      video.load();
+      
       video.play()
         .then(() => {
           setHasStarted(true);
@@ -105,7 +119,24 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           setIsPlaying(true);
           setShowControls(false);
         })
-        .catch(error => console.error("Errore riproduzione:", error));
+        .catch(error => {
+          console.error("Errore riproduzione:", error);
+          setIsLoading(false);
+          
+          // Soluzione alternativa per alcuni browser
+          setTimeout(() => {
+            video.play()
+              .then(() => {
+                setHasStarted(true);
+                setShowTimer(true);
+                setIsPlaying(true);
+                setShowControls(false);
+              })
+              .catch(fallbackError => {
+                console.error("Errore fallback:", fallbackError);
+              });
+          }, 500);
+        });
     }
   };
 
@@ -186,25 +217,32 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         >
           {!hasStarted ? (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-              <div 
-                className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer gap-4 transition-all duration-300 hover:scale-105" 
-                onClick={handlePlayClick}
-              >
-                <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <p className="text-white/80">Caricamento in corso...</p>
                 </div>
-                <div className="text-center space-y-2">
-                  <p className="text-lg font-medium">Video Esclusivo Finale</p>
-                  <p className="text-sm text-white/80">
-                    Clicca play per accedere alle selezioni
-                  </p>
+              ) : (
+                <div 
+                  className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer gap-4 transition-all duration-300 hover:scale-105" 
+                  onClick={handlePlayClick}
+                >
+                  <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                    <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <p className="text-lg font-medium">Video Esclusivo Finale</p>
+                    <p className="text-sm text-white/80">
+                      Clicca play per accedere alle selezioni
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
               {/* Video nascosto in preload */}
               <video
                 ref={videoRef}
                 src={MEGA_VIDEO_URL}
-                preload="metadata"
+                preload="none"
                 className="hidden"
               />
             </div>
@@ -216,6 +254,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 src={MEGA_VIDEO_URL}
                 className="w-full h-full object-contain bg-black"
                 playsInline
+                onContextMenu={(e) => e.preventDefault()}
               />
               
               {/* Overlay per gestire i click */}
@@ -275,7 +314,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                     />
                     
                     <span className="text-white text-sm">
-                      {formatTime(currentTime)} / {formatTime(videoDuration)}
+                      {formatTime(Math.floor(currentTime))} / {formatTime(videoDuration)}
                     </span>
                   </div>
 
@@ -305,7 +344,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-red-400 animate-pulse" />
               <span className="text-red-400 font-semibold text-lg">
-                {formatTime(videoDuration - currentTime)} rimanenti
+                {formatTime(videoDuration - Math.floor(currentTime))} rimanenti
               </span>
             </div>
             <p className="text-white/90 text-sm leading-relaxed">
