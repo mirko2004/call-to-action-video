@@ -13,7 +13,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(607);
+  const [videoDuration, setVideoDuration] = useState(0); // Fixed: initialize to 0
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -114,6 +114,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       });
 
       playerRef.current.on('loaded', (data: any) => {
+        // Fixed: Set actual video duration
         setVideoDuration(data.duration);
       });
 
@@ -193,14 +194,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   };
 
-  // Gestione volume
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    if (playerRef.current) {
-      playerRef.current.setVolume(newVolume);
-    }
-  };
-
   // Toggle fullscreen
   const toggleFullscreen = async () => {
     if (!playerRef.current) return;
@@ -214,12 +207,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     } catch (error) {
       console.log("Errore fullscreen:", error);
     }
-  };
-
-  // Calcola progresso video
-  const calculateProgress = () => {
-    if (videoDuration === 0) return 0;
-    return (currentTime / videoDuration) * 100;
   };
 
   return (
@@ -254,15 +241,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           ) : (
             <div className="w-full h-full relative" ref={containerRef}>
-              {/* Barra di progresso */}
-              <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
-                <div 
-                  className="h-full bg-yellow-500 transition-all duration-200"
-                  style={{ width: `${calculateProgress()}%` }}
-                ></div>
-              </div>
-              
-              {/* Controlli video */}
+              {/* Controlli video semplificati */}
               <div 
                 className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
                 onClick={(e) => e.stopPropagation()}
@@ -289,47 +268,32 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                       <Volume2 className="w-5 h-5" />
                     )}
                   </button>
-                  
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                    className="w-24 accent-yellow-500"
-                  />
-
-                  <span className="text-white text-sm">
-                    {formatTime(currentTime)} / {formatTime(videoDuration)}
-                  </span>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={toggleFullscreen}
-                    className="text-white hover:text-yellow-400 transition-colors"
-                  >
-                    {isFullscreen ? (
-                      <Minimize className="w-5 h-5" />
-                    ) : (
-                      <Maximize className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
+                <button 
+                  onClick={toggleFullscreen}
+                  className="text-white hover:text-yellow-400 transition-colors"
+                >
+                  {isFullscreen ? (
+                    <Minimize className="w-5 h-5" />
+                  ) : (
+                    <Maximize className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
           )}
         </div>
 
         {/* Timer countdown sincronizzato */}
-        {hasStarted && showTimer && currentTime < videoDuration && videoDuration > 0 && (
+        {hasStarted && showTimer && videoDuration > 0 && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
           >
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-red-400 animate-pulse" />
               <span className="text-red-400 font-semibold text-lg">
+                {/* Fixed: Use actual video duration */}
                 {formatTime(videoDuration - currentTime)} rimanenti
               </span>
             </div>
