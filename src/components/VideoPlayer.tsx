@@ -7,7 +7,6 @@ const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
   const navigate = useNavigate();
   
   const handleContinue = () => {
-    // Forza la navigazione per mobile
     navigate("/secondo-video");
     onContinue();
   };
@@ -47,8 +46,9 @@ const VideoPlayer = () => {
   const [accessExpired, setAccessExpired] = useState(false);
   const [userIP, setUserIP] = useState<string>("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0); // For forcing mobile updates
-  
+  const [forceUpdate, setForceUpdate] = useState(0);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
   const playerInitializedRef = useRef(false);
@@ -74,17 +74,16 @@ const VideoPlayer = () => {
     const simulatedIP = "192.168.1." + Math.floor(Math.random() * 255);
     setUserIP(simulatedIP);
     
-    // Controlla se questo IP è bloccato
     const blockedUntil = localStorage.getItem(`video_blocked_${simulatedIP}`);
     if (blockedUntil && new Date().getTime() < parseInt(blockedUntil)) {
       setAccessExpired(true);
     }
   }, []);
 
-  // Timer per l'accesso al video (5 minuti quando appare il pulsante)
+  // Timer per l'accesso al video
   useEffect(() => {
     if (showButton && !accessExpired && accessTimeLeft === 0) {
-      setAccessTimeLeft(300); // 5 minuti = 300 secondi
+      setAccessTimeLeft(300);
     }
   }, [showButton, accessExpired]);
 
@@ -94,9 +93,8 @@ const VideoPlayer = () => {
       const timer = setInterval(() => {
         setAccessTimeLeft(prev => {
           const newValue = prev - 1;
-          setForceUpdate(f => f + 1); // Force re-render for mobile
+          setForceUpdate(f => f + 1);
           if (newValue <= 0) {
-            // Tempo scaduto - blocca IP per 10 minuti
             const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
             localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
             setAccessExpired(true);
@@ -130,12 +128,11 @@ const VideoPlayer = () => {
     };
   }, []);
 
+  // INIZIALIZZAZIONE IMMEDIATA DEL PLAYER
   useEffect(() => {
-    if (!hasStarted || playerInitializedRef.current) return;
-    
-    const timer = setTimeout(() => {
-      const iframe = document.getElementById('vimeo-player');
-      if (iframe && window.Vimeo) {
+    const initializePlayer = () => {
+      const iframe = document.getElementById('vimeo-player') as HTMLIFrameElement;
+      if (iframe && window.Vimeo && !playerInitializedRef.current) {
         try {
           // @ts-ignore
           playerRef.current = new window.Vimeo.Player(iframe);
@@ -171,21 +168,33 @@ const VideoPlayer = () => {
           
           const handleTimeUpdate = (data: any) => {
             setCurrentTime(Math.floor(data.seconds));
-            setForceUpdate(f => f + 1); // Force re-render for mobile timer
+            setForceUpdate(f => f + 1);
+          };
+          
+          // Evento aggiunto per rilevare quando il player è pronto
+          const handleLoaded = () => {
+            setIsPlayerReady(true);
           };
           
           playerRef.current.on('play', handlePlay);
           playerRef.current.on('pause', handlePause);
           playerRef.current.on('ended', handleEnd);
           playerRef.current.on('timeupdate', handleTimeUpdate);
+          playerRef.current.on('loaded', handleLoaded);
         } catch (error) {
           console.log("Error initializing Vimeo player:", error);
         }
       }
-    }, 500);
+    };
+
+    // Prova a inizializzare immediatamente
+    initializePlayer();
     
-    return () => clearTimeout(timer);
-  }, [hasStarted, volume]);
+    // Fallback: riprova ogni 200ms finché non è pronto
+    const interval = setInterval(initializePlayer, 200);
+    
+    return () => clearInterval(interval);
+  }, [volume]);
 
   useEffect(() => {
     if (!playerRef.current || !playerInitializedRef.current) return;
@@ -228,10 +237,17 @@ const VideoPlayer = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isPlaying, hasStarted, startControlsTimer]);
 
+  // MODIFICA: Avvia il video solo quando il player è pronto
   const handlePlayClick = () => {
     setHasStarted(true);
-    setIsPlaying(true);
-    setVideoEnded(false);
+    
+    if (playerRef.current && isPlayerReady) {
+      playerRef.current.play().catch((error: any) => {
+        console.log("Error playing:", error);
+      });
+    } else {
+      console.log("Player non ancora pronto, attendere...");
+    }
   };
 
   const handleButtonClick = () => {
@@ -350,15 +366,23 @@ const VideoPlayer = () => {
                     <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
                   </div>
                   <p className="text-lg font-medium animate-fade-in" style={{ animationDelay: '1s' }}>Clicca per iniziare il video</p>
+                  
+                  {/* Indicatore di caricamento */}
+                  {!isPlayerReady && (
+                    <div className="absolute bottom-6 text-sm text-white/70">
+                      Caricamento in corso...
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="w-full h-full relative">
                 <div className="absolute inset-0">
                   <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
+                    {/* MODIFICA: Aggiunto preload=auto per caricamento anticipato */}
                     <iframe
                       id="vimeo-player"
-                      src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0`}
+                      src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0&preload=auto`}
                       frameBorder="0"
                       allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
                       style={{ 
