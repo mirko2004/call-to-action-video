@@ -21,7 +21,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   
   // Google Drive video ID
   const GOOGLE_DRIVE_ID = "1SLIZHcvyvyHEHpFDaD91awuWMoNxHIBi";
-  const EMBED_URL = `https://drive.google.com/file/d/${GOOGLE_DRIVE_ID}/preview`;
+  const EMBED_URL = `https://drive.google.com/file/d/${GOOGLE_DRIVE_ID}/preview?autoplay=0`;
 
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
@@ -214,7 +214,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               {/* Iframe del video */}
               <iframe
                 src={EMBED_URL}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover pointer-events-none"
                 frameBorder="0"
                 allow="autoplay; fullscreen"
                 allowFullScreen
@@ -224,10 +224,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 }}
               />
               
-              {/* Overlay clic per play/pause */}
+              {/* Overlay per bloccare i controlli nativi e gestire i click */}
               <div 
-                className="absolute inset-0 z-10"
+                className="absolute inset-0 z-10 cursor-pointer"
                 onClick={togglePlayPause}
+                onDoubleClick={toggleFullscreen}
               />
               
               {/* Barra di progresso */}
@@ -242,6 +243,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               {(showControls || !isPlaying) && (
                 <div 
                   className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center space-x-4">
                     <button 
