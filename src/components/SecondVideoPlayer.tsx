@@ -18,10 +18,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  // Google Drive video ID
-  const GOOGLE_DRIVE_ID = "1SLIZHcvyvyHEHpFDaD91awuWMoNxHIBi";
-  const EMBED_URL = `https://drive.google.com/file/d/${GOOGLE_DRIVE_ID}/preview?autoplay=0`;
 
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
@@ -211,25 +207,35 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              {/* Iframe del video */}
-              <iframe
-                src={EMBED_URL}
-                className="w-full h-full object-cover pointer-events-none"
-                frameBorder="0"
-                allow="autoplay; fullscreen"
-                allowFullScreen
-                style={{ 
-                  borderRadius: isFullscreen ? '0' : '0.75rem',
-                  overflow: 'hidden'
-                }}
-              />
-              
-              {/* Overlay per bloccare i controlli nativi e gestire i click */}
-              <div 
-                className="absolute inset-0 z-10 cursor-pointer"
-                onClick={togglePlayPause}
-                onDoubleClick={toggleFullscreen}
-              />
+              {/* Simulazione video con gradiente animato */}
+              <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black relative overflow-hidden">
+                {/* Animazione di "riproduzione" */}
+                {isPlaying && (
+                  <div className="absolute inset-0">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-orange-500 animate-pulse"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 animate-pulse"></div>
+                  </div>
+                )}
+                
+                {/* Contenuto del video simulato */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center space-y-4 p-8">
+                    <div className="text-yellow-400 text-4xl mb-4">🎥</div>
+                    <h3 className="text-2xl font-bold text-white">Contenuto Esclusivo</h3>
+                    <p className="text-white/80">Video in riproduzione...</p>
+                    {isPlaying && (
+                      <div className="text-yellow-400 animate-bounce">▶</div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Overlay per gestire i click */}
+                <div 
+                  className="absolute inset-0 z-10 cursor-pointer"
+                  onClick={togglePlayPause}
+                  onDoubleClick={toggleFullscreen}
+                />
+              </div>
               
               {/* Barra di progresso */}
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
