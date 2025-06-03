@@ -1,7 +1,7 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
+import Player from '@vimeo/player';
 
 interface SecondVideoPlayerProps {
   onVideoEnd: () => void;
@@ -9,7 +9,7 @@ interface SecondVideoPlayerProps {
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<Player | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
@@ -17,7 +17,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [videoDuration, setVideoDuration] = useState(607); // 10:07 in secondi
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
-  const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -32,7 +31,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     
     controlsTimeout.current = setTimeout(() => {
       if (isPlaying) {
-        setShowControls(false);
+        // Non nascondere i controlli per Vimeo
       }
     }, 3000);
   };
@@ -48,10 +47,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
-        setShowControls(true);
-        if (isPlaying) {
-          startControlsTimer();
-        }
+        // Mostra sempre i controlli per Vimeo
       }
     };
     
@@ -71,63 +67,73 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Gestione eventi del video HTML5
+  // Inizializza player Vimeo
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (!hasStarted || !containerRef.current) return;
 
-    const handleLoadedMetadata = () => {
-      setVideoDuration(Math.floor(video.duration));
-    };
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://player.vimeo.com/video/1090015233?badge=0&autopause=0&player_id=0&app_id=58479';
+    iframe.allow = 'autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media';
+    iframe.title = '2 secondo video sito';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    
+    containerRef.current.innerHTML = '';
+    containerRef.current.appendChild(iframe);
 
-    const handleTimeUpdate = () => {
-      setCurrentTime(Math.floor(video.currentTime));
-    };
+    playerRef.current = new Player(iframe, {
+      id: 1090015233,
+      autoplay: true,
+      muted: isMuted,
+      volume: volume
+    });
 
-    const handlePlay = () => {
+    // Gestione eventi
+    playerRef.current.on('play', () => {
       setIsPlaying(true);
       startControlsTimer();
-    };
+    });
 
-    const handlePause = () => {
+    playerRef.current.on('pause', () => {
       setIsPlaying(false);
       clearControlsTimer();
-    };
+    });
 
-    const handleEnded = () => {
+    playerRef.current.on('ended', () => {
       handleVideoEnd();
-    };
+    });
 
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('ended', handleEnded);
+    playerRef.current.on('timeupdate', (data) => {
+      setCurrentTime(data.seconds);
+    });
+
+    playerRef.current.on('loaded', (data) => {
+      setVideoDuration(data.duration);
+    });
+
+    playerRef.current.on('volumechange', (data) => {
+      setVolume(data.volume);
+      if (data.volume > 0) {
+        previousVolumeRef.current = data.volume;
+      }
+    });
+
+    playerRef.current.on('fullscreenchange', (data) => {
+      setIsFullscreen(data.fullscreen);
+    });
 
     return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('ended', handleEnded);
+      if (playerRef.current) {
+        playerRef.current.destroy();
+        playerRef.current = null;
+      }
     };
   }, [hasStarted]);
-
-  // Aggiorna il volume del video
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video) {
-      video.volume = volume;
-    }
-  }, [volume]);
 
   const handlePlayClick = () => {
     setHasStarted(true);
     setShowTimer(true);
-    const video = videoRef.current;
-    if (video) {
-      video.play();
-    }
   };
 
   const handleVideoEnd = () => {
@@ -147,43 +153,44 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   // Toggle play/pause
   const togglePlayPause = () => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (!playerRef.current) return;
 
     if (isPlaying) {
-      video.pause();
+      playerRef.current.pause();
     } else {
-      video.play();
+      playerRef.current.play();
     }
   };
 
   // Toggle mute
   const toggleMute = () => {
+    if (!playerRef.current) return;
+    
     if (volume > 0) {
       previousVolumeRef.current = volume;
-      setVolume(0);
+      playerRef.current.setVolume(0);
     } else {
-      const newVolume = previousVolumeRef.current;
-      setVolume(newVolume);
+      playerRef.current.setVolume(previousVolumeRef.current);
     }
   };
 
   // Gestione volume
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
+    if (playerRef.current) {
+      playerRef.current.setVolume(newVolume);
+    }
   };
 
   // Toggle fullscreen
   const toggleFullscreen = async () => {
-    const container = containerRef.current;
-    if (!container) return;
+    if (!playerRef.current) return;
 
     try {
       if (!isFullscreen) {
-        await container.requestFullscreen();
+        await playerRef.current.requestFullscreen();
       } else {
-        await document.exitFullscreen();
+        await playerRef.current.exitFullscreen();
       }
     } catch (error) {
       console.log("Errore fullscreen:", error);
@@ -206,7 +213,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         </div>
 
         <div 
-          ref={containerRef}
           className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in group ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
           style={{ animationDelay: '0.4s' }}
         >
@@ -228,24 +234,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               </div>
             </div>
           ) : (
-            <div className="w-full h-full relative">
-              {/* Video HTML5 */}
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                style={{ 
-                  borderRadius: isFullscreen ? '0' : '0.75rem',
-                }}
-                preload="metadata"
-                playsInline
-                onClick={togglePlayPause}
-                onDoubleClick={toggleFullscreen}
-              >
-                {/* Video di esempio - sostituisci con il tuo URL */}
-                <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4" />
-                Il tuo browser non supporta il tag video.
-              </video>
-              
+            <div className="w-full h-full relative" ref={containerRef}>
               {/* Barra di progresso */}
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
                 <div 
@@ -255,63 +244,61 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               </div>
               
               {/* Controlli video */}
-              {(showControls || !isPlaying) && (
-                <div 
-                  className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center space-x-4">
-                    <button 
-                      onClick={togglePlayPause}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isPlaying ? (
-                        <Pause className="w-6 h-6" />
-                      ) : (
-                        <Play className="w-6 h-6" fill="currentColor" />
-                      )}
-                    </button>
-                    
-                    <button 
-                      onClick={toggleMute}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isMuted ? (
-                        <VolumeX className="w-5 h-5" />
-                      ) : (
-                        <Volume2 className="w-5 h-5" />
-                      )}
-                    </button>
-                    
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeChange}
-                      className="w-24 accent-yellow-500"
-                    />
+              <div 
+                className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center space-x-4">
+                  <button 
+                    onClick={togglePlayPause}
+                    className="text-white hover:text-yellow-400 transition-colors"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-6 h-6" />
+                    ) : (
+                      <Play className="w-6 h-6" fill="currentColor" />
+                    )}
+                  </button>
+                  
+                  <button 
+                    onClick={toggleMute}
+                    className="text-white hover:text-yellow-400 transition-colors"
+                  >
+                    {isMuted ? (
+                      <VolumeX className="w-5 h-5" />
+                    ) : (
+                      <Volume2 className="w-5 h-5" />
+                    )}
+                  </button>
+                  
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={isMuted ? 0 : volume}
+                    onChange={handleVolumeChange}
+                    className="w-24 accent-yellow-500"
+                  />
 
-                    <span className="text-white text-sm">
-                      {formatTime(currentTime)} / {formatTime(videoDuration)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={toggleFullscreen}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isFullscreen ? (
-                        <Minimize className="w-5 h-5" />
-                      ) : (
-                        <Maximize className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
+                  <span className="text-white text-sm">
+                    {formatTime(currentTime)} / {formatTime(videoDuration)}
+                  </span>
                 </div>
-              )}
+
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={toggleFullscreen}
+                    className="text-white hover:text-yellow-400 transition-colors"
+                  >
+                    {isFullscreen ? (
+                      <Minimize className="w-5 h-5" />
+                    ) : (
+                      <Maximize className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
