@@ -9,18 +9,18 @@ interface SecondVideoPlayerProps {
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration] = useState(607); // 10:07 in secondi
+  const [videoDuration, setVideoDuration] = useState(607); // 10:07 in secondi
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
-  const timerInterval = useRef<NodeJS.Timeout | null>(null);
   const isMuted = volume === 0;
   const previousVolumeRef = useRef(0.7);
 
@@ -61,33 +61,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   }, [isPlaying, hasStarted]);
 
-  // Timer personalizzato per il video
-  useEffect(() => {
-    if (isPlaying && hasStarted) {
-      timerInterval.current = setInterval(() => {
-        setCurrentTime(prev => {
-          const newTime = prev + 1;
-          if (newTime >= videoDuration) {
-            handleVideoEnd();
-            return videoDuration;
-          }
-          return newTime;
-        });
-      }, 1000);
-    } else {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
-        timerInterval.current = null;
-      }
-    }
-
-    return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
-      }
-    };
-  }, [isPlaying, hasStarted, videoDuration]);
-
   // Gestione fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -98,12 +71,63 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Gestione eventi del video HTML5
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      setVideoDuration(Math.floor(video.duration));
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(Math.floor(video.currentTime));
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+      startControlsTimer();
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+      clearControlsTimer();
+    };
+
+    const handleEnded = () => {
+      handleVideoEnd();
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [hasStarted]);
+
+  // Aggiorna il volume del video
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.volume = volume;
+    }
+  }, [volume]);
+
   const handlePlayClick = () => {
     setHasStarted(true);
-    setIsPlaying(true);
     setShowTimer(true);
-    setCurrentTime(0);
-    startControlsTimer();
+    const video = videoRef.current;
+    if (video) {
+      video.play();
+    }
   };
 
   const handleVideoEnd = () => {
@@ -111,9 +135,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     setShowTimer(false);
     setShowFinalPopup(true);
     clearControlsTimer();
-    if (timerInterval.current) {
-      clearInterval(timerInterval.current);
-    }
     onVideoEnd();
   };
 
@@ -126,12 +147,13 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   // Toggle play/pause
   const togglePlayPause = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
     if (isPlaying) {
-      setIsPlaying(false);
-      clearControlsTimer();
+      video.pause();
     } else {
-      setIsPlaying(true);
-      startControlsTimer();
+      video.play();
     }
   };
 
@@ -207,35 +229,22 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              {/* Simulazione video con gradiente animato */}
-              <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black relative overflow-hidden">
-                {/* Animazione di "riproduzione" */}
-                {isPlaying && (
-                  <div className="absolute inset-0">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-orange-500 animate-pulse"></div>
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 animate-pulse"></div>
-                  </div>
-                )}
-                
-                {/* Contenuto del video simulato */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center space-y-4 p-8">
-                    <div className="text-yellow-400 text-4xl mb-4">🎥</div>
-                    <h3 className="text-2xl font-bold text-white">Contenuto Esclusivo</h3>
-                    <p className="text-white/80">Video in riproduzione...</p>
-                    {isPlaying && (
-                      <div className="text-yellow-400 animate-bounce">▶</div>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Overlay per gestire i click */}
-                <div 
-                  className="absolute inset-0 z-10 cursor-pointer"
-                  onClick={togglePlayPause}
-                  onDoubleClick={toggleFullscreen}
-                />
-              </div>
+              {/* Video HTML5 */}
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                style={{ 
+                  borderRadius: isFullscreen ? '0' : '0.75rem',
+                }}
+                preload="metadata"
+                playsInline
+                onClick={togglePlayPause}
+                onDoubleClick={toggleFullscreen}
+              >
+                {/* Video di esempio - sostituisci con il tuo URL */}
+                <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4" />
+                Il tuo browser non supporta il tag video.
+              </video>
               
               {/* Barra di progresso */}
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
