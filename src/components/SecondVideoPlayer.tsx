@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
 
@@ -7,7 +7,6 @@ interface SecondVideoPlayerProps {
 }
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -19,151 +18,46 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [showControls, setShowControls] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
-  const previousVolumeRef = useRef(0.7);
+  // ID del video da Google Drive
+  const GOOGLE_DRIVE_VIDEO_ID = "1SLIZHcvyvyHEHpFDaD91awuWMoNxHIBi";
+  const VIDEO_URL = `https://drive.google.com/file/d/${GOOGLE_DRIVE_VIDEO_ID}/preview`;
 
-  const isMuted = volume === 0;
-
-  // Updated Google Drive video URL with direct download link
-  const GOOGLE_DRIVE_VIDEO_URL = "https://drive.google.com/uc?export=download&id=1SLIZHcvyvyHEHpFDaD91awuWMoNxHIBi";
-
-  // Listener per fullscreen changes
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  // Gestione del tempo del video
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
-      
-      // Controllo fine video
-      if (video.currentTime >= videoDuration) {
-        setIsPlaying(false);
-        setShowTimer(false);
-        setShowFinalPopup(true);
-        onVideoEnd();
-      }
-    };
-
-    const handleLoadedMetadata = () => {
-      setVideoDuration(video.duration);
-    };
-
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    
-    return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-    };
-  }, [videoDuration, onVideoEnd]);
-
-  // Timer per nascondere i controlli
-  const startControlsTimer = useCallback(() => {
-    if (controlsTimeout.current) {
-      clearTimeout(controlsTimeout.current);
-    }
-    
-    controlsTimeout.current = setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
-      }
-    }, 3000);
-  }, [isPlaying]);
-
-  // Gestisci movimento mouse per controlli
-  useEffect(() => {
-    const handleMouseMove = () => {
-      if (hasStarted) {
-        setShowControls(true);
-        if (isPlaying) {
-          startControlsTimer();
-        }
-      }
-    };
-    
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isPlaying, hasStarted, startControlsTimer]);
-
+  // Funzione per avviare il video
   const handlePlayClick = () => {
-    const video = videoRef.current;
-    if (video) {
-      video.play()
-        .then(() => {
-          setHasStarted(true);
-          setShowTimer(true);
-          setIsPlaying(true);
-          setShowControls(false);
-        })
-        .catch(error => console.error("Errore riproduzione:", error));
+    setHasStarted(true);
+    setIsPlaying(true);
+    setShowTimer(true);
+    // Imposta una durata fissa per il timer (in secondi)
+    setVideoDuration(120); // 2 minuti
+  };
+
+  // Aggiorna il timer ogni secondo
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (isPlaying && hasStarted && currentTime < videoDuration) {
+      timer = setInterval(() => {
+        setCurrentTime(prev => {
+          const newTime = prev + 1;
+          
+          // Controllo fine video
+          if (newTime >= videoDuration) {
+            clearInterval(timer);
+            setIsPlaying(false);
+            setShowTimer(false);
+            setShowFinalPopup(true);
+            onVideoEnd();
+          }
+          
+          return newTime;
+        });
+      }, 1000);
     }
-  };
+    
+    return () => clearInterval(timer);
+  }, [isPlaying, hasStarted, videoDuration]);
 
-  const togglePlayPause = () => {
-    const video = videoRef.current;
-    if (video) {
-      if (isPlaying) {
-        video.pause();
-      } else {
-        video.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const toggleMute = () => {
-    const video = videoRef.current;
-    if (video) {
-      if (volume > 0) {
-        previousVolumeRef.current = volume;
-        video.volume = 0;
-        setVolume(0);
-      } else {
-        video.volume = previousVolumeRef.current;
-        setVolume(previousVolumeRef.current);
-      }
-    }
-  };
-
-  const toggleFullscreen = async () => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    try {
-      if (!isFullscreen) {
-        await container.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (error) {
-      console.log("Errore fullscreen:", error);
-    }
-  };
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    const video = videoRef.current;
-    if (video) {
-      video.volume = newVolume;
-    }
-    setVolume(newVolume);
-  };
-
-  const calculateProgress = () => {
-    if (videoDuration === 0) return 0;
-    return (currentTime / videoDuration) * 100;
-  };
-
+  // Formatta il tempo in minuti:secondi
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -180,7 +74,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         </div>
 
         <div 
-          ref={containerRef}
           className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
           style={{ animationDelay: '0.4s' }}
         >
@@ -200,99 +93,16 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   </p>
                 </div>
               </div>
-              {/* Video nascosto in preload */}
-              <video
-                ref={videoRef}
-                src={GOOGLE_DRIVE_VIDEO_URL}
-                preload="metadata"
-                className="hidden"
-              />
             </div>
           ) : (
             <div className="w-full h-full relative">
-              {/* Player video Google Drive */}
-              <video
-                ref={videoRef}
-                src={GOOGLE_DRIVE_VIDEO_URL}
-                className="w-full h-full object-contain bg-black"
-                playsInline
+              {/* Iframe per Google Drive */}
+              <iframe
+                src={`${VIDEO_URL}${isPlaying ? '?autoplay=1' : ''}`}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="autoplay"
               />
-              
-              {/* Overlay per gestire i click */}
-              <div 
-                className="absolute inset-0 z-10 bg-transparent cursor-pointer"
-                onClick={() => setShowControls(!showControls)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  return false;
-                }}
-              />
-              
-              {/* Barra di progresso sempre visibile */}
-              <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
-                <div 
-                  className="h-full bg-yellow-500 transition-all duration-200"
-                  style={{ width: `${calculateProgress()}%` }}
-                ></div>
-              </div>
-              
-              {/* Controlli personalizzati */}
-              {showControls && (
-                <div 
-                  className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
-                >
-                  <div className="flex items-center space-x-4">
-                    <button 
-                      onClick={togglePlayPause}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isPlaying ? (
-                        <Pause className="w-6 h-6" />
-                      ) : (
-                        <Play className="w-6 h-6" fill="currentColor" />
-                      )}
-                    </button>
-                    
-                    <button 
-                      onClick={toggleMute}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isMuted ? (
-                        <VolumeX className="w-5 h-5" />
-                      ) : (
-                        <Volume2 className="w-5 h-5" />
-                      )}
-                    </button>
-                    
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeChange}
-                      className="w-24 accent-yellow-500"
-                    />
-                    
-                    <span className="text-white text-sm">
-                      {formatTime(currentTime)} / {formatTime(videoDuration)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={toggleFullscreen}
-                      className="text-white hover:text-yellow-400 transition-colors"
-                    >
-                      {isFullscreen ? (
-                        <Minimize className="w-5 h-5" />
-                      ) : (
-                        <Maximize className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
