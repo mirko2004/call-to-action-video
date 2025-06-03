@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
-import Player from '@vimeo/player';
 
 interface SecondVideoPlayerProps {
   onVideoEnd: () => void;
@@ -9,12 +8,12 @@ interface SecondVideoPlayerProps {
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<Player | null>(null);
+  const playerRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(607); // 10:07 in secondi
+  const [videoDuration, setVideoDuration] = useState(607);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -57,71 +56,91 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   }, [isPlaying, hasStarted]);
 
-  // Gestione fullscreen
+  // Carica script Vimeo API
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    if (!hasStarted) return;
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+    const script = document.createElement('script');
+    script.src = 'https://player.vimeo.com/api/player.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, [hasStarted]);
 
   // Inizializza player Vimeo
   useEffect(() => {
     if (!hasStarted || !containerRef.current) return;
 
-    const iframe = document.createElement('iframe');
-    iframe.src = 'https://player.vimeo.com/video/1090015233?badge=0&autopause=0&player_id=0&app_id=58479';
-    iframe.allow = 'autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media';
-    iframe.title = '2 secondo video sito';
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = 'none';
-    
-    containerRef.current.innerHTML = '';
-    containerRef.current.appendChild(iframe);
+    const initPlayer = () => {
+      const iframe = document.createElement('iframe');
+      iframe.src = 'https://player.vimeo.com/video/1090015233?badge=0&autopause=0&player_id=0&app_id=58479';
+      iframe.allow = 'autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media';
+      iframe.title = '2 secondo video sito';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+      
+      containerRef.current!.innerHTML = '';
+      containerRef.current!.appendChild(iframe);
 
-    playerRef.current = new Player(iframe, {
-      id: 1090015233,
-      autoplay: true,
-      muted: isMuted,
-      volume: volume
-    });
+      // Usa l'API globale di Vimeo
+      playerRef.current = new (window as any).Vimeo.Player(iframe, {
+        id: 1090015233,
+        autoplay: true,
+        muted: isMuted,
+        volume: volume
+      });
 
-    // Gestione eventi
-    playerRef.current.on('play', () => {
-      setIsPlaying(true);
-      startControlsTimer();
-    });
+      // Gestione eventi
+      playerRef.current.on('play', () => {
+        setIsPlaying(true);
+        startControlsTimer();
+      });
 
-    playerRef.current.on('pause', () => {
-      setIsPlaying(false);
-      clearControlsTimer();
-    });
+      playerRef.current.on('pause', () => {
+        setIsPlaying(false);
+        clearControlsTimer();
+      });
 
-    playerRef.current.on('ended', () => {
-      handleVideoEnd();
-    });
+      playerRef.current.on('ended', () => {
+        handleVideoEnd();
+      });
 
-    playerRef.current.on('timeupdate', (data) => {
-      setCurrentTime(data.seconds);
-    });
+      playerRef.current.on('timeupdate', (data: any) => {
+        setCurrentTime(data.seconds);
+      });
 
-    playerRef.current.on('loaded', (data) => {
-      setVideoDuration(data.duration);
-    });
+      playerRef.current.on('loaded', (data: any) => {
+        setVideoDuration(data.duration);
+      });
 
-    playerRef.current.on('volumechange', (data) => {
-      setVolume(data.volume);
-      if (data.volume > 0) {
-        previousVolumeRef.current = data.volume;
-      }
-    });
+      playerRef.current.on('volumechange', (data: any) => {
+        setVolume(data.volume);
+        if (data.volume > 0) {
+          previousVolumeRef.current = data.volume;
+        }
+      });
 
-    playerRef.current.on('fullscreenchange', (data) => {
-      setIsFullscreen(data.fullscreen);
-    });
+      playerRef.current.on('fullscreenchange', (data: any) => {
+        setIsFullscreen(data.fullscreen);
+      });
+    };
+
+    // Controlla se l'API è già disponibile
+    if ((window as any).Vimeo) {
+      initPlayer();
+    } else {
+      // Attendi il caricamento dello script
+      const checkInterval = setInterval(() => {
+        if ((window as any).Vimeo) {
+          clearInterval(checkInterval);
+          initPlayer();
+        }
+      }, 100);
+    }
 
     return () => {
       if (playerRef.current) {
