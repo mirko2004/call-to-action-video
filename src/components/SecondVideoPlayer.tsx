@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize, ExternalLink } from "lucide-react";
 import FinalPopup from "./FinalPopup";
 
 interface SecondVideoPlayerProps {
@@ -9,6 +8,7 @@ interface SecondVideoPlayerProps {
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
@@ -18,51 +18,89 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
-  // ID del video da Google Drive
-  const GOOGLE_DRIVE_VIDEO_ID = "1SLIZHcvyvyHEHpFDaD91awuWMoNxHIBi";
-  const VIDEO_URL = `https://drive.google.com/file/d/${GOOGLE_DRIVE_VIDEO_ID}/preview`;
+  // Updated video URL - using a direct video source for better control
+  const VIDEO_URL = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
-  // Funzione per avviare il video
+  // Initialize video metadata when loaded
+  useEffect(() => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const handleLoadedData = () => {
+        setVideoDuration(video.duration);
+        setIsLoading(false);
+      };
+      
+      video.addEventListener('loadeddata', handleLoadedData);
+      return () => video.removeEventListener('loadeddata', handleLoadedData);
+    }
+  }, []);
+
+  // Update timer based on video playback
+  useEffect(() => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const handleTimeUpdate = () => {
+        setCurrentTime(video.currentTime);
+        if (video.currentTime >= video.duration - 0.5) {
+          handleVideoEnd();
+        }
+      };
+      
+      video.addEventListener('timeupdate', handleTimeUpdate);
+      return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+    }
+  }, []);
+
   const handlePlayClick = () => {
+    setIsLoading(true);
     setHasStarted(true);
-    setIsPlaying(true);
-    setShowTimer(true);
-    // Imposta una durata fissa per il timer (in secondi)
-    setVideoDuration(120); // 2 minuti
+    
+    // Start playback after a small delay to ensure video is ready
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.play()
+          .then(() => {
+            setIsPlaying(true);
+            setShowTimer(true);
+            setIsLoading(false);
+          })
+          .catch(error => {
+            console.error("Playback failed:", error);
+            setIsLoading(false);
+          });
+      }
+    }, 100);
   };
 
-  // Aggiorna il timer ogni secondo
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    
-    if (isPlaying && hasStarted && currentTime < videoDuration) {
-      timer = setInterval(() => {
-        setCurrentTime(prev => {
-          const newTime = prev + 1;
-          
-          // Controllo fine video
-          if (newTime >= videoDuration) {
-            clearInterval(timer);
-            setIsPlaying(false);
-            setShowTimer(false);
-            setShowFinalPopup(true);
-            onVideoEnd();
-          }
-          
-          return newTime;
-        });
-      }, 1000);
-    }
-    
-    return () => clearInterval(timer);
-  }, [isPlaying, hasStarted, videoDuration]);
+  const handleVideoEnd = () => {
+    setIsPlaying(false);
+    setShowTimer(false);
+    setShowFinalPopup(true);
+    onVideoEnd();
+  };
 
-  // Formatta il tempo in minuti:secondi
+  // Format time in minutes:seconds
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Toggle play/pause
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      videoRef.current?.pause();
+    } else {
+      videoRef.current?.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  // Open video in new window
+  const openInNewWindow = () => {
+    window.open(VIDEO_URL, '_blank');
   };
 
   return (
@@ -75,6 +113,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         </div>
 
         <div 
+          ref={containerRef}
           className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
           style={{ animationDelay: '0.4s' }}
         >
@@ -97,13 +136,40 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           ) : (
             <div className="w-full h-full relative">
-              {/* Iframe per Google Drive */}
-              <iframe
-                src={`${VIDEO_URL}${isPlaying ? '?autoplay=1' : ''}`}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="autoplay"
+              {/* Video element for better control */}
+              <video
+                ref={videoRef}
+                src={VIDEO_URL}
+                className="w-full h-full object-cover"
+                preload="auto"
+                playsInline
+                volume={volume}
               />
+              
+              {/* Loading spinner */}
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-400"></div>
+                </div>
+              )}
+              
+              {/* Open in new window button */}
+              <button
+                onClick={openInNewWindow}
+                className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 rounded-full p-2 transition-all"
+              >
+                <ExternalLink className="w-4 h-4 text-white" />
+              </button>
+              
+              {/* Play/Pause overlay button */}
+              <div 
+                className={`absolute inset-0 flex items-center justify-center ${isPlaying ? 'hidden' : ''}`}
+                onClick={togglePlayPause}
+              >
+                <div className="bg-black/50 rounded-full p-4 cursor-pointer hover:bg-black/70 transition-all">
+                  <Play className="w-12 h-12 text-white" />
+                </div>
+              </div>
             </div>
           )}
         </div>
