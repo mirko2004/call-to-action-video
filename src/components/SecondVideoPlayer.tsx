@@ -24,8 +24,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   const isMuted = volume === 0;
 
-  // Link MEGA del video
-  const MEGA_VIDEO_URL = "https://mega.nz/file/3I8gGCoS#jH9kOyLuxwjsPw-nDq1xlQeV4HxrW3wXuklq0aw9BGE";
+  // Updated Google Drive video URL with direct download link
+  const GOOGLE_DRIVE_VIDEO_URL = "https://drive.google.com/uc?export=download&id=1SLIZHcvyvyHEHpFDaD91awuWMoNxHIBi";
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -203,17 +203,17 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               {/* Video nascosto in preload */}
               <video
                 ref={videoRef}
-                src={MEGA_VIDEO_URL}
+                src={GOOGLE_DRIVE_VIDEO_URL}
                 preload="metadata"
                 className="hidden"
               />
             </div>
           ) : (
             <div className="w-full h-full relative">
-              {/* Player video MEGA */}
+              {/* Player video Google Drive */}
               <video
                 ref={videoRef}
-                src={MEGA_VIDEO_URL}
+                src={GOOGLE_DRIVE_VIDEO_URL}
                 className="w-full h-full object-contain bg-black"
                 playsInline
               />
