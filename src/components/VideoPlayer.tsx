@@ -58,12 +58,14 @@ const VideoPlayer = () => {
 
   const isMuted = volume === 0;
 
+  // Rilevamento iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
   // Listener per fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isCurrentlyFullscreen);
-      // Mostra i controlli quando si entra/esce dal fullscreen
       setShowControls(true);
       if (isCurrentlyFullscreen && isPlaying) {
         startControlsTimer();
@@ -112,13 +114,12 @@ const VideoPlayer = () => {
     }
   }, [showButton, accessExpired]);
 
-  // Timer countdown con force update per mobile
+  // Timer countdown
   useEffect(() => {
     if (accessTimeLeft > 0) {
       const timer = setInterval(() => {
         setAccessTimeLeft(prev => {
           const newValue = prev - 1;
-          setForceUpdate(f => f + 1);
           if (newValue <= 0) {
             const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
             localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
@@ -194,13 +195,17 @@ const VideoPlayer = () => {
           
           const handleTimeUpdate = (data: any) => {
             setCurrentTime(Math.floor(data.seconds));
-            setForceUpdate(f => f + 1);
+          };
+
+          const handleFullscreenChange = (data: any) => {
+            setIsFullscreen(data.fullscreen);
           };
           
           playerRef.current.on('play', handlePlay);
           playerRef.current.on('pause', handlePause);
           playerRef.current.on('ended', handleEnd);
           playerRef.current.on('timeupdate', handleTimeUpdate);
+          playerRef.current.on('fullscreenchange', handleFullscreenChange);
         } catch (error) {
           console.log("Error initializing Vimeo player:", error);
         }
@@ -293,14 +298,24 @@ const VideoPlayer = () => {
 
   const toggleFullscreen = async () => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !playerRef.current) return;
 
     try {
       if (isFullscreen) {
-        await document.exitFullscreen();
+        // Uscita da fullscreen
+        if (isIOS) {
+          await playerRef.current.exitFullscreen();
+        } else {
+          await document.exitFullscreen();
+        }
       } else {
-        await container.requestFullscreen();
-        // Forza la visualizzazione dei controlli all'entrata in fullscreen
+        // Entrata in fullscreen
+        if (isIOS) {
+          await playerRef.current.requestFullscreen();
+        } else {
+          await container.requestFullscreen();
+        }
+        // Forza la visualizzazione dei controlli
         setShowControls(true);
       }
     } catch (error) {
@@ -479,7 +494,7 @@ const VideoPlayer = () => {
             <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4 animate-fade-in">
               <div className="flex items-center justify-center space-x-2 mb-2">
                 <Timer className="w-5 h-5 text-blue-400 animate-pulse" />
-                <span className="text-blue-400 font-semibold text-lg" key={`${currentTime}-${forceUpdate}`}>
+                <span className="text-blue-400 font-semibold text-lg">
                   {Math.max(0, videoDuration - currentTime)} secondi rimanenti
                 </span>
               </div>
@@ -509,7 +524,7 @@ const VideoPlayer = () => {
                 <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mt-4 animate-pulse">
                   <div className="flex items-center justify-center space-x-2 mb-2">
                     <Clock className="w-5 h-5 text-red-400 animate-pulse" />
-                    <span className="text-red-400 font-bold text-xl" key={`access-${accessTimeLeft}-${forceUpdate}`}>
+                    <span className="text-red-400 font-bold text-xl">
                       {formatAccessTime(accessTimeLeft)}
                     </span>
                   </div>
