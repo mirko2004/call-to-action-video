@@ -1,4 +1,3 @@
-
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
@@ -100,18 +99,21 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Timer per nascondere i controlli
+  // Timer per nascondere i controlli - NON nascondere in fullscreen
   const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
     }
     
-    controlsTimeout.current = setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
-      }
-    }, 3000);
-  }, [isPlaying]);
+    // Non nascondere i controlli se siamo in fullscreen
+    if (!isFullscreen) {
+      controlsTimeout.current = setTimeout(() => {
+        if (isPlaying) {
+          setShowControls(false);
+        }
+      }, 3000);
+    }
+  }, [isPlaying, isFullscreen]);
 
   const clearControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
@@ -303,10 +305,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
           
-          {/* Controlli video personalizzati - visibili sempre in fullscreen */}
+          {/* Controlli video personalizzati - sempre visibili in fullscreen */}
           {hasStarted && (showControls || !isPlaying || isFullscreen) && (
             <div 
               className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+              style={{ opacity: isFullscreen ? 1 : undefined }}
             >
               <div className="flex items-center space-x-4">
                 <button 
