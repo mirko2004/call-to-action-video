@@ -305,11 +305,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
           
-          {/* Controlli video personalizzati - sempre visibili in fullscreen */}
+          {/* Controlli video personalizzati - SEMPRE visibili in fullscreen */}
           {hasStarted && (showControls || !isPlaying || isFullscreen) && (
             <div 
               className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
-              style={{ opacity: isFullscreen ? 1 : undefined }}
+              style={{ 
+                opacity: isFullscreen ? '1 !important' : undefined,
+                display: isFullscreen ? 'flex !important' : undefined
+              }}
             >
               <div className="flex items-center space-x-4">
                 <button 
