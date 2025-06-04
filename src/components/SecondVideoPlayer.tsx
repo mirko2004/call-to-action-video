@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
@@ -7,24 +8,77 @@ interface SecondVideoPlayerProps {
 }
 
 const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(10); // durata simulata di 10 secondi
+  const [videoDuration, setVideoDuration] = useState(30); // durata video Vimeo in secondi
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [player, setPlayer] = useState<any>(null);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
 
   // Stato derivato per il muto
   const isMuted = volume === 0;
+
+  // Inizializza Vimeo Player
+  useEffect(() => {
+    // Carica Vimeo Player API
+    const script = document.createElement('script');
+    script.src = 'https://player.vimeo.com/api/player.js';
+    script.onload = () => {
+      if (iframeRef.current && window.Vimeo) {
+        const vimeoPlayer = new window.Vimeo.Player(iframeRef.current);
+        setPlayer(vimeoPlayer);
+
+        // Ottieni durata del video
+        vimeoPlayer.getDuration().then((duration: number) => {
+          setVideoDuration(Math.floor(duration));
+        });
+
+        // Listener per gli eventi del video
+        vimeoPlayer.on('play', () => {
+          setIsPlaying(true);
+          setHasStarted(true);
+          setShowTimer(true);
+        });
+
+        vimeoPlayer.on('pause', () => {
+          setIsPlaying(false);
+        });
+
+        vimeoPlayer.on('ended', () => {
+          setIsPlaying(false);
+          setShowTimer(false);
+          setShowFinalPopup(true);
+          onVideoEnd();
+        });
+
+        vimeoPlayer.on('timeupdate', (data: any) => {
+          setCurrentTime(Math.floor(data.seconds));
+          setForceUpdate(count => count + 1);
+        });
+
+        vimeoPlayer.on('volumechange', (data: any) => {
+          setVolume(data.volume);
+        });
+      }
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+    };
+  }, [onVideoEnd]);
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -35,33 +89,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
-
-  // Simula l'aggiornamento del tempo corrente con force update per mobile
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isPlaying && hasStarted) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          const newTime = prev >= videoDuration - 1 ? videoDuration : prev + 1;
-          
-          if (newTime >= videoDuration) {
-            setIsPlaying(false);
-            setShowTimer(false);
-            setShowFinalPopup(true);
-            onVideoEnd();
-          }
-          
-          // Force update per mobile
-          setForceUpdate(count => count + 1);
-          
-          return newTime;
-        });
-      }, 1000);
-    }
-    
-    return () => clearInterval(interval);
-  }, [isPlaying, hasStarted, videoDuration, onVideoEnd]);
 
   // Timer per nascondere i controlli
   const startControlsTimer = useCallback(() => {
@@ -94,45 +121,65 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       }
     };
     
+    const handleTouch = () => {
+      if (hasStarted) {
+        setShowControls(true);
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      }
+    };
+    
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('touchstart', handleTouch);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('touchstart', handleTouch);
+    };
   }, [isPlaying, hasStarted, startControlsTimer]);
 
-  const handlePlayClick = () => {
-    const video = videoRef.current;
-    if (video) {
-      video.play().catch((error) => {
-        console.log("Play was prevented:", error);
-      });
-      setIsPlaying(true);
-      setHasStarted(true);
-      setShowTimer(true);
-    }
-  };
-
-  const togglePlayPause = () => {
-    const video = videoRef.current;
-    if (video) {
-      if (isPlaying) {
-        video.pause();
-        setIsPlaying(false);
-      } else {
-        video.play();
+  const handlePlayClick = async () => {
+    if (player) {
+      try {
+        await player.play();
         setIsPlaying(true);
+        setHasStarted(true);
+        setShowTimer(true);
+      } catch (error) {
+        console.log("Play was prevented:", error);
       }
     }
   };
 
-  const toggleMute = () => {
-    const video = videoRef.current;
-    if (video) {
-      if (volume > 0) {
-        previousVolumeRef.current = volume;
-        setVolume(0);
-        video.volume = 0;
-      } else {
-        setVolume(previousVolumeRef.current);
-        video.volume = previousVolumeRef.current;
+  const togglePlayPause = async () => {
+    if (player) {
+      try {
+        if (isPlaying) {
+          await player.pause();
+          setIsPlaying(false);
+        } else {
+          await player.play();
+          setIsPlaying(true);
+        }
+      } catch (error) {
+        console.log("Play/pause error:", error);
+      }
+    }
+  };
+
+  const toggleMute = async () => {
+    if (player) {
+      try {
+        if (volume > 0) {
+          previousVolumeRef.current = volume;
+          await player.setVolume(0);
+          setVolume(0);
+        } else {
+          await player.setVolume(previousVolumeRef.current);
+          setVolume(previousVolumeRef.current);
+        }
+      } catch (error) {
+        console.log("Mute error:", error);
       }
     }
   };
@@ -152,33 +199,21 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVolumeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
-    const video = videoRef.current;
-    if (video) {
-      video.volume = newVolume;
+    if (player) {
+      try {
+        await player.setVolume(newVolume);
+      } catch (error) {
+        console.log("Volume change error:", error);
+      }
     }
   };
 
   const calculateProgress = () => {
     if (videoDuration === 0) return 0;
     return (currentTime / videoDuration) * 100;
-  };
-
-  const handleVideoEnd = () => {
-    setIsPlaying(false);
-    setShowTimer(false);
-    setShowFinalPopup(true);
-    onVideoEnd();
-  };
-
-  const handleVideoPause = () => {
-    setIsPlaying(false);
-  };
-
-  const handleVideoPlay = () => {
-    setIsPlaying(true);
   };
 
   return (
@@ -196,50 +231,35 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
           style={{ animationDelay: '0.4s' }}
         >
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            controls={false}
-            muted={false}
-            playsInline
-            preload="metadata"
-            onEnded={handleVideoEnd}
-            onPause={handleVideoPause}
-            onPlay={handleVideoPlay}
-            controlsList="nodownload nofullscreen noremoteplayback"
-            disablePictureInPicture
-            style={{
-              WebkitAppearance: 'none'
-            }}
-          >
-            <source src="/placeholder-video.mp4" type="video/mp4" />
-            <div className="flex items-center justify-center h-full text-white">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center">
-                  <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
-                </div>
-                <p className="text-lg">Video Esclusivo Finale</p>
-                <p className="text-sm text-white/80">
-                  Clicca play per accedere alle selezioni
-                </p>
-              </div>
-            </div>
-          </video>
+          <iframe
+            ref={iframeRef}
+            src="https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=0&autoplay=0"
+            className="w-full h-full"
+            frameBorder="0"
+            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+            title="2 secondo video sito"
+          />
           
           {/* Custom Play Button Overlay */}
           {!hasStarted && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer" onClick={handlePlayClick}>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer z-30" onClick={handlePlayClick}>
               <div className="bg-yellow-400 hover:bg-yellow-500 rounded-full p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                 <Play className="w-12 h-12 text-black ml-1" fill="currentColor" />
               </div>
             </div>
           )}
 
-          {/* Overlay per prevenire il click destro */}
+          {/* Overlay per controlli touch su mobile */}
           {hasStarted && (
             <div 
               className="absolute inset-0 z-10"
               onContextMenu={(e) => e.preventDefault()}
+              onClick={() => {
+                setShowControls(true);
+                if (isPlaying) {
+                  startControlsTimer();
+                }
+              }}
             />
           )}
           
@@ -260,8 +280,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             >
               <div className="flex items-center space-x-4">
                 <button 
-                  onClick={togglePlayPause}
-                  className="text-white hover:text-yellow-400 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePlayPause();
+                  }}
+                  className="text-white hover:text-yellow-400 transition-colors p-2"
                 >
                   {isPlaying ? (
                     <Pause className="w-6 h-6" />
@@ -271,8 +294,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 </button>
                 
                 <button 
-                  onClick={toggleMute}
-                  className="text-white hover:text-yellow-400 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleMute();
+                  }}
+                  className="text-white hover:text-yellow-400 transition-colors p-2"
                 >
                   {isMuted ? (
                     <VolumeX className="w-5 h-5" />
@@ -288,14 +314,18 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   step="0.01"
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
+                  onClick={(e) => e.stopPropagation()}
                   className="w-24 accent-yellow-500"
                 />
               </div>
 
               <div className="flex items-center space-x-2">
                 <button 
-                  onClick={toggleFullscreen}
-                  className="text-white hover:text-yellow-400 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFullscreen();
+                  }}
+                  className="text-white hover:text-yellow-400 transition-colors p-2"
                 >
                   {isFullscreen ? (
                     <Minimize className="w-5 h-5" />
@@ -308,7 +338,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           )}
         </div>
 
-        {/* Timer rimane sempre visibile durante la riproduzione */}
+        {/* Timer countdown */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
