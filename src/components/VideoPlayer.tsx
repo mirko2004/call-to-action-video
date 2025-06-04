@@ -268,8 +268,8 @@ const VideoPlayer = () => {
   };
 
   const toggleFullscreen = async () => {
-    const container = containerRef.current;
     const iframe = document.getElementById('vimeo-player');
+    const container = containerRef.current;
     
     if (!container) return;
 
@@ -288,7 +288,7 @@ const VideoPlayer = () => {
       console.log("Fullscreen error:", error);
       // Fallback: prova con il container se l'iframe fallisce
       try {
-        if (!isFullscreen) {
+        if (!isFullscreen && container.requestFullscreen) {
           await container.requestFullscreen();
         }
       } catch (fallbackError) {
@@ -352,7 +352,7 @@ const VideoPlayer = () => {
 
           <div 
             ref={containerRef}
-            className={`aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : ''}`}
+            className={`bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : 'aspect-video'}`}
             style={{ animationDelay: '0.8s' }}
           >
             {!hasStarted ? (
@@ -370,7 +370,7 @@ const VideoPlayer = () => {
             ) : (
               <div className="w-full h-full relative">
                 <div className="absolute inset-0">
-                  <div style={{ padding: '56.25% 0 0 0', position: 'relative' }}>
+                  <div style={{ padding: isFullscreen ? '0' : '56.25% 0 0 0', position: 'relative', height: isFullscreen ? '100%' : 'auto' }}>
                     <iframe
                       id="vimeo-player"
                       src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0`}
@@ -383,7 +383,8 @@ const VideoPlayer = () => {
                         width: '100%', 
                         height: '100%',
                         borderRadius: isFullscreen ? '0' : '0.75rem',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        objectFit: 'cover'
                       }}
                       title="Video Esclusivo"
                       allowFullScreen
@@ -403,7 +404,8 @@ const VideoPlayer = () => {
                   ></div>
                 </div>
                 
-                {(showControls || !isPlaying) && (
+                {/* Controlli sempre visibili in fullscreen */}
+                {(showControls || !isPlaying || isFullscreen) && (
                   <div 
                     className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
                   >
