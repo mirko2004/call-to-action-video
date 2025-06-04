@@ -150,6 +150,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     };
   }, [isPlaying, hasStarted, startControlsTimer]);
 
+  // Effetto: in fullscreen, mostra sempre i controlli e disabilita il timer
+  useEffect(() => {
+    if (isFullscreen) {
+      setShowControls(true);
+      clearControlsTimer();
+    }
+  }, [isFullscreen, clearControlsTimer]);
+
   const handlePlayClick = async () => {
     if (player) {
       try {
@@ -197,17 +205,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   };
 
   const toggleFullscreen = async () => {
-    const iframe = iframeRef.current;
     const container = containerRef.current;
     
-    if (!container || !iframe) return;
+    if (!container) return;
 
     try {
       if (!isFullscreen) {
-        // Prova prima con l'iframe del video
-        if (iframe.requestFullscreen) {
-          await iframe.requestFullscreen();
-        } else {
+        // Richiedi il fullscreen per il container
+        if (container.requestFullscreen) {
           await container.requestFullscreen();
         }
       } else {
@@ -215,14 +220,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       }
     } catch (error) {
       console.log("Fullscreen error:", error);
-      // Fallback: prova con il container se l'iframe fallisce
-      try {
-        if (!isFullscreen && container.requestFullscreen) {
-          await container.requestFullscreen();
-        }
-      } catch (fallbackError) {
-        console.log("Fallback fullscreen error:", fallbackError);
-      }
     }
   };
 
@@ -255,21 +252,17 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
         <div 
           ref={containerRef}
-          className={`bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : 'aspect-video'}`}
+          className={`bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none flex items-center justify-center' : 'aspect-video'}`}
           style={{ animationDelay: '0.4s' }}
         >
           <iframe
             ref={iframeRef}
             src="https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=0&autoplay=0&preload=auto"
-            className={`w-full h-full ${isFullscreen ? '' : 'aspect-video object-cover'}`}
+            className={`w-full h-full ${isFullscreen ? '' : 'aspect-video'}`}
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
             title="2 secondo video sito"
             allowFullScreen
-            style={{
-              objectFit: 'cover',
-              aspectRatio: isFullscreen ? 'auto' : '16/9'
-            }}
           />
           
           {/* Custom Play Button Overlay */}
@@ -310,8 +303,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             <div 
               className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
               style={{ 
-                opacity: isFullscreen ? '1 !important' : undefined,
-                display: isFullscreen ? 'flex !important' : undefined
+                // In fullscreen, i controlli devono essere sempre ben visibili
+                opacity: isFullscreen ? 1 : undefined
               }}
             >
               <div className="flex items-center space-x-4">
