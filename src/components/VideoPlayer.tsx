@@ -47,6 +47,7 @@ const VideoPlayer = () => {
   const [userIP, setUserIP] = useState<string>("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [orientation, setOrientation] = useState('portrait');
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
@@ -56,10 +57,12 @@ const VideoPlayer = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  const isMuted = volume === 0;
-
-  // Rilevamento iOS
+  const orientationRef = useRef(orientation);
+  
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isAndroid = /Android/.test(navigator.userAgent);
+
+  const isMuted = volume === 0;
 
   // Listener per fullscreen changes
   useEffect(() => {
@@ -67,8 +70,29 @@ const VideoPlayer = () => {
       const isCurrentlyFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isCurrentlyFullscreen);
       setShowControls(true);
-      if (isCurrentlyFullscreen && isPlaying) {
-        startControlsTimer();
+      
+      if (isCurrentlyFullscreen) {
+        // Forza orientamento orizzontale
+        if (isAndroid && screen.orientation?.lock) {
+          try {
+            screen.orientation.lock('landscape');
+          } catch (e) {
+            console.error("Orientation lock failed:", e);
+          }
+        }
+        
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      } else {
+        // Ripristina orientamento
+        if (isAndroid && screen.orientation?.unlock) {
+          try {
+            screen.orientation.unlock();
+          } catch (e) {
+            console.error("Orientation unlock failed:", e);
+          }
+        }
       }
     };
 
@@ -76,25 +100,57 @@ const VideoPlayer = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [isPlaying]);
 
-  // Gestione eventi mouse in fullscreen
+  // Gestione orientamento iOS
   useEffect(() => {
-    const handleFullscreenInteraction = () => {
-      if (isFullscreen) {
-        setShowControls(true);
-        startControlsTimer();
+    const updateOrientation = () => {
+      const newOrientation = 
+        window.matchMedia("(orientation: landscape)").matches ? 'landscape' : 'portrait';
+      setOrientation(newOrientation);
+      orientationRef.current = newOrientation;
+    };
+
+    window.addEventListener('resize', updateOrientation);
+    updateOrientation();
+
+    return () => window.removeEventListener('resize', updateOrientation);
+  }, []);
+
+  // Listener per Page Visibility API (fix timer)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && accessTimerRef.current) {
+        // Salva stato timer quando la pagina è nascosta
+        clearInterval(accessTimerRef.current);
+        accessTimerRef.current = null;
+      } else if (!document.hidden && accessTimeLeft > 0 && !accessTimerRef.current) {
+        // Ripristina timer quando la pagina è visibile
+        startAccessTimer();
       }
     };
 
-    if (isFullscreen) {
-      window.addEventListener('mousemove', handleFullscreenInteraction);
-      window.addEventListener('click', handleFullscreenInteraction);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [accessTimeLeft]);
+
+  const startAccessTimer = useCallback(() => {
+    if (accessTimerRef.current) {
+      clearInterval(accessTimerRef.current);
     }
 
-    return () => {
-      window.removeEventListener('mousemove', handleFullscreenInteraction);
-      window.removeEventListener('click', handleFullscreenInteraction);
-    };
-  }, [isFullscreen, isPlaying]);
+    accessTimerRef.current = setInterval(() => {
+      setAccessTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(accessTimerRef.current!);
+          const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
+          localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
+          setAccessExpired(true);
+          setShowButton(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [userIP]);
 
   // Simula il rilevamento dell'IP
   useEffect(() => {
@@ -117,21 +173,12 @@ const VideoPlayer = () => {
   // Timer countdown
   useEffect(() => {
     if (accessTimeLeft > 0) {
-      const timer = setInterval(() => {
-        setAccessTimeLeft(prev => {
-          const newValue = prev - 1;
-          if (newValue <= 0) {
-            const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
-            localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
-            setAccessExpired(true);
-            setShowButton(false);
-            return 0;
-          }
-          return newValue;
-        });
-      }, 1000);
-      
-      return () => clearInterval(timer);
+      startAccessTimer();
+      return () => {
+        if (accessTimerRef.current) {
+          clearInterval(accessTimerRef.current);
+        }
+      };
     }
   }, [accessTimeLeft, userIP]);
 
@@ -303,20 +350,21 @@ const VideoPlayer = () => {
     try {
       if (isFullscreen) {
         // Uscita da fullscreen
-        if (isIOS) {
-          await playerRef.current.exitFullscreen();
-        } else {
-          await document.exitFullscreen();
-        }
+        await document.exitFullscreen();
       } else {
         // Entrata in fullscreen
+        await container.requestFullscreen();
+        
+        // Forza landscape per iOS
         if (isIOS) {
-          await playerRef.current.requestFullscreen();
-        } else {
-          await container.requestFullscreen();
+          container.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+          container.style.width = '100vh';
+          container.style.height = '100vw';
+          container.style.position = 'fixed';
+          container.style.top = '50%';
+          container.style.left = '50%';
+          container.style.transformOrigin = 'center center';
         }
-        // Forza la visualizzazione dei controlli
-        setShowControls(true);
       }
     } catch (error) {
       console.error("Fullscreen error:", error);
@@ -365,7 +413,7 @@ const VideoPlayer = () => {
             Contenuto Video Esclusivo
           </h1>
           <p className="text-gray-400 max-w-xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            Guarda attentamente per sbloccare l'accesso al video completo 🚀
+            Guarda attentamente per sbloccare l'accesso al video completo �
           </p>
         </header>
 
@@ -379,7 +427,18 @@ const VideoPlayer = () => {
           <div 
             ref={containerRef}
             className={`bg-slate-900 rounded-xl overflow-hidden shadow-lg relative group animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none' : 'aspect-video'}`}
-            style={{ animationDelay: '0.8s' }}
+            style={{ 
+              animationDelay: '0.8s',
+              ...(isIOS && isFullscreen ? {
+                transform: 'translate(-50%, -50%) rotate(90deg)',
+                width: '100vh',
+                height: '100vw',
+                top: '50%',
+                left: '50%',
+                position: 'fixed',
+                transformOrigin: 'center center'
+              } : {})
+            }}
           >
             {!hasStarted ? (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
@@ -399,8 +458,7 @@ const VideoPlayer = () => {
                   <div style={{ padding: isFullscreen ? '0' : '56.25% 0 0 0', position: 'relative', height: isFullscreen ? '100%' : 'auto' }}>
                     <iframe
                       id="vimeo-player"
-                      // Aggiunto parametro seek=0 per disabilitare la ricerca
-                      src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0&seek=0`}
+                      src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0${isIOS ? '&seek=0' : ''}`}
                       frameBorder="0"
                       allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
                       style={{ 
@@ -419,17 +477,12 @@ const VideoPlayer = () => {
                   </div>
                 </div>
                 
-                {/* Overlay per bloccare l'interazione su iOS in fullscreen */}
+                {/* Overlay di blocco per iOS in fullscreen */}
                 {isIOS && isFullscreen && (
                   <div 
                     className="absolute inset-0 z-30"
-                    onTouchMove={(e) => {
-                      // Blocca lo scorrimento durante la riproduzione
-                      if (isPlaying) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }
-                    }}
+                    onTouchMove={(e) => e.preventDefault()}
+                    onClick={togglePlayPause}
                   />
                 )}
                 
@@ -449,8 +502,27 @@ const VideoPlayer = () => {
                 <div 
                   className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
                     isFullscreen || showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                  }`}
+                  } ${isIOS && isFullscreen ? 'ios-controls' : ''}`}
+                  style={{
+                    ...(isIOS && isFullscreen ? {
+                      flexDirection: 'row-reverse',
+                      padding: '20px',
+                      top: 0,
+                      bottom: 'auto',
+                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)'
+                    } : {})
+                  }}
                 >
+                  {/* Pulsante schermo intero iOS */}
+                  {isIOS && isFullscreen && (
+                    <button 
+                      onClick={toggleFullscreen}
+                      className="text-white hover:text-yellow-400 transition-colors p-2"
+                    >
+                      <Minimize className="w-8 h-8" />
+                    </button>
+                  )}
+                  
                   <div className="flex items-center space-x-4">
                     <button 
                       onClick={togglePlayPause}
@@ -485,12 +557,10 @@ const VideoPlayer = () => {
                     />
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  {/* Pulsante schermo intero normale */}
+                  {(!isIOS || !isFullscreen) && (
                     <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFullscreen();
-                      }}
+                      onClick={toggleFullscreen}
                       className="text-white hover:text-yellow-400 transition-colors p-2"
                     >
                       {isFullscreen ? (
@@ -499,7 +569,7 @@ const VideoPlayer = () => {
                         <Maximize className="w-5 h-5" />
                       )}
                     </button>
-                  </div>
+                  )}
                 </div>
               </div>
             )}
