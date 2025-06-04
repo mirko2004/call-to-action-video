@@ -1,4 +1,3 @@
-
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
@@ -28,7 +27,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   // Stato derivato per il muto
   const isMuted = volume === 0;
 
-  // Inizializza Vimeo Player
+  // Funzione per formattare il tempo in mm:ss
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Inizializza Vimeo Player con preload
   useEffect(() => {
     // Carica Vimeo Player API
     const script = document.createElement('script');
@@ -37,6 +43,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       if (iframeRef.current && window.Vimeo) {
         const vimeoPlayer = new window.Vimeo.Player(iframeRef.current);
         setPlayer(vimeoPlayer);
+
+        // Preload del video per caricamento più veloce
+        vimeoPlayer.ready().then(() => {
+          console.log('Video ready for playback');
+        });
 
         // Ottieni durata del video
         vimeoPlayer.getDuration().then((duration: number) => {
@@ -186,16 +197,31 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   const toggleFullscreen = async () => {
     const container = containerRef.current;
+    const iframe = iframeRef.current;
+    
     if (!container) return;
 
     try {
       if (!isFullscreen) {
-        await container.requestFullscreen();
+        // Su mobile, prova prima con l'iframe del video
+        if (iframe && iframe.requestFullscreen) {
+          await iframe.requestFullscreen();
+        } else {
+          await container.requestFullscreen();
+        }
       } else {
         await document.exitFullscreen();
       }
     } catch (error) {
       console.log("Fullscreen error:", error);
+      // Fallback: prova con il container se l'iframe fallisce
+      try {
+        if (!isFullscreen) {
+          await container.requestFullscreen();
+        }
+      } catch (fallbackError) {
+        console.log("Fallback fullscreen error:", fallbackError);
+      }
     }
   };
 
@@ -233,11 +259,12 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         >
           <iframe
             ref={iframeRef}
-            src="https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=0&autoplay=0"
+            src="https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=0&autoplay=0&preload=auto"
             className="w-full h-full"
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
             title="2 secondo video sito"
+            allowFullScreen
           />
           
           {/* Custom Play Button Overlay */}
@@ -338,7 +365,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           )}
         </div>
 
-        {/* Timer countdown */}
+        {/* Timer countdown migliorato */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
@@ -347,7 +374,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Timer className="w-5 h-5 text-red-400 animate-pulse" />
               <span className="text-red-400 font-semibold text-lg">
-                {videoDuration - currentTime} secondi rimanenti
+                {formatTime(videoDuration - currentTime)} rimanenti
               </span>
             </div>
             <p className="text-white/90 text-sm leading-relaxed">

@@ -269,16 +269,31 @@ const VideoPlayer = () => {
 
   const toggleFullscreen = async () => {
     const container = containerRef.current;
+    const iframe = document.getElementById('vimeo-player');
+    
     if (!container) return;
 
     try {
       if (!isFullscreen) {
-        await container.requestFullscreen();
+        // Su mobile, prova prima con l'iframe del video
+        if (iframe && iframe.requestFullscreen) {
+          await iframe.requestFullscreen();
+        } else {
+          await container.requestFullscreen();
+        }
       } else {
         await document.exitFullscreen();
       }
     } catch (error) {
       console.log("Fullscreen error:", error);
+      // Fallback: prova con il container se l'iframe fallisce
+      try {
+        if (!isFullscreen) {
+          await container.requestFullscreen();
+        }
+      } catch (fallbackError) {
+        console.log("Fallback fullscreen error:", fallbackError);
+      }
     }
   };
 
@@ -428,8 +443,11 @@ const VideoPlayer = () => {
 
                     <div className="flex items-center space-x-2">
                       <button 
-                        onClick={toggleFullscreen}
-                        className="text-white hover:text-yellow-400 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFullscreen();
+                        }}
+                        className="text-white hover:text-yellow-400 transition-colors p-2"
                       >
                         {isFullscreen ? (
                           <Minimize className="w-5 h-5" />
