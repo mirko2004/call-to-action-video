@@ -7,7 +7,6 @@ const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
   const navigate = useNavigate();
   
   const handleContinue = () => {
-    // Forza la navigazione per mobile
     navigate("/secondo-video");
     onContinue();
   };
@@ -47,7 +46,7 @@ const VideoPlayer = () => {
   const [accessExpired, setAccessExpired] = useState(false);
   const [userIP, setUserIP] = useState<string>("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0); // For forcing mobile updates
+  const [forceUpdate, setForceUpdate] = useState(0);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
@@ -62,29 +61,54 @@ const VideoPlayer = () => {
   // Listener per fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isCurrentlyFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isCurrentlyFullscreen);
+      // Mostra i controlli quando si entra/esce dal fullscreen
+      setShowControls(true);
+      if (isCurrentlyFullscreen && isPlaying) {
+        startControlsTimer();
+      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+  }, [isPlaying]);
+
+  // Gestione eventi mouse in fullscreen
+  useEffect(() => {
+    const handleFullscreenInteraction = () => {
+      if (isFullscreen) {
+        setShowControls(true);
+        startControlsTimer();
+      }
+    };
+
+    if (isFullscreen) {
+      window.addEventListener('mousemove', handleFullscreenInteraction);
+      window.addEventListener('click', handleFullscreenInteraction);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleFullscreenInteraction);
+      window.removeEventListener('click', handleFullscreenInteraction);
+    };
+  }, [isFullscreen, isPlaying]);
 
   // Simula il rilevamento dell'IP
   useEffect(() => {
     const simulatedIP = "192.168.1." + Math.floor(Math.random() * 255);
     setUserIP(simulatedIP);
     
-    // Controlla se questo IP è bloccato
     const blockedUntil = localStorage.getItem(`video_blocked_${simulatedIP}`);
     if (blockedUntil && new Date().getTime() < parseInt(blockedUntil)) {
       setAccessExpired(true);
     }
   }, []);
 
-  // Timer per l'accesso al video (5 minuti quando appare il pulsante)
+  // Timer per l'accesso al video
   useEffect(() => {
     if (showButton && !accessExpired && accessTimeLeft === 0) {
-      setAccessTimeLeft(300); // 5 minuti = 300 secondi
+      setAccessTimeLeft(300);
     }
   }, [showButton, accessExpired]);
 
@@ -94,9 +118,8 @@ const VideoPlayer = () => {
       const timer = setInterval(() => {
         setAccessTimeLeft(prev => {
           const newValue = prev - 1;
-          setForceUpdate(f => f + 1); // Force re-render for mobile
+          setForceUpdate(f => f + 1);
           if (newValue <= 0) {
-            // Tempo scaduto - blocca IP per 10 minuti
             const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
             localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
             setAccessExpired(true);
@@ -171,7 +194,7 @@ const VideoPlayer = () => {
           
           const handleTimeUpdate = (data: any) => {
             setCurrentTime(Math.floor(data.seconds));
-            setForceUpdate(f => f + 1); // Force re-render for mobile timer
+            setForceUpdate(f => f + 1);
           };
           
           playerRef.current.on('play', handlePlay);
@@ -195,21 +218,18 @@ const VideoPlayer = () => {
     });
   }, [volume]);
 
-  // Timer per nascondere i controlli - NON nascondere in fullscreen
   const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
     }
     
-    // Non nascondere i controlli se siamo in fullscreen
-    if (!isFullscreen) {
-      controlsTimeout.current = setTimeout(() => {
-        if (isPlaying) {
-          setShowControls(false);
-        }
-      }, 3000);
-    }
-  }, [isPlaying, isFullscreen]);
+    // In fullscreen nascondi i controlli dopo 3 secondi
+    controlsTimeout.current = setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 3000);
+  }, [isPlaying]);
 
   const clearControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
@@ -272,32 +292,19 @@ const VideoPlayer = () => {
   };
 
   const toggleFullscreen = async () => {
-    const iframe = document.getElementById('vimeo-player');
     const container = containerRef.current;
-    
     if (!container) return;
 
     try {
-      if (!isFullscreen) {
-        // Su mobile, prova prima con l'iframe del video
-        if (iframe && iframe.requestFullscreen) {
-          await iframe.requestFullscreen();
-        } else {
-          await container.requestFullscreen();
-        }
-      } else {
+      if (isFullscreen) {
         await document.exitFullscreen();
+      } else {
+        await container.requestFullscreen();
+        // Forza la visualizzazione dei controlli all'entrata in fullscreen
+        setShowControls(true);
       }
     } catch (error) {
-      console.log("Fullscreen error:", error);
-      // Fallback: prova con il container se l'iframe fallisce
-      try {
-        if (!isFullscreen && container.requestFullscreen) {
-          await container.requestFullscreen();
-        }
-      } catch (fallbackError) {
-        console.log("Fallback fullscreen error:", fallbackError);
-      }
+      console.error("Fullscreen error:", error);
     }
   };
 
@@ -322,7 +329,7 @@ const VideoPlayer = () => {
           <p className="text-white/80 leading-relaxed mb-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
             Il tempo per accedere al contenuto è scaduto. L'opportunità non è più disponibile.
           </p>
-          <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 animate-scale-in" style={{ animationDelay: '0.6s' }}>
+          <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/50 rounded-xl p-4 animate-scale-in" style={{ animationDelay: '0.6s' }}>
             <p className="text-red-400 font-semibold text-sm mb-2">
               💬 Vuoi una seconda possibilità?
             </p>
@@ -408,66 +415,62 @@ const VideoPlayer = () => {
                   ></div>
                 </div>
                 
-                {/* Controlli sempre visibili in fullscreen */}
-                {(showControls || !isPlaying || isFullscreen) && (
-                  <div 
-                    className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
-                    style={{ 
-                      opacity: isFullscreen ? '1 !important' : undefined,
-                      display: isFullscreen ? 'flex !important' : undefined
-                    }}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <button 
-                        onClick={togglePlayPause}
-                        className="text-white hover:text-yellow-400 transition-colors"
-                      >
-                        {isPlaying ? (
-                          <Pause className="w-6 h-6" />
-                        ) : (
-                          <Play className="w-6 h-6" fill="currentColor" />
-                        )}
-                      </button>
-                      
-                      <button 
-                        onClick={toggleMute}
-                        className="text-white hover:text-yellow-400 transition-colors"
-                      >
-                        {isMuted ? (
-                          <VolumeX className="w-5 h-5" />
-                        ) : (
-                          <Volume2 className="w-5 h-5" />
-                        )}
-                      </button>
-                      
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={isMuted ? 0 : volume}
-                        onChange={handleVolumeChange}
-                        className="w-24 accent-yellow-500"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFullscreen();
-                        }}
-                        className="text-white hover:text-yellow-400 transition-colors p-2"
-                      >
-                        {isFullscreen ? (
-                          <Minimize className="w-5 h-5" />
-                        ) : (
-                          <Maximize className="w-5 h-5" />
-                        )}
-                      </button>
-                    </div>
+                {/* Controlli con transizione di opacità */}
+                <div 
+                  className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
+                    isFullscreen || showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  <div className="flex items-center space-x-4">
+                    <button 
+                      onClick={togglePlayPause}
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-6 h-6" />
+                      ) : (
+                        <Play className="w-6 h-6" fill="currentColor" />
+                      )}
+                    </button>
+                    
+                    <button 
+                      onClick={toggleMute}
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      {isMuted ? (
+                        <VolumeX className="w-5 h-5" />
+                      ) : (
+                        <Volume2 className="w-5 h-5" />
+                      )}
+                    </button>
+                    
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      className="w-24 accent-yellow-500"
+                    />
                   </div>
-                )}
+
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullscreen();
+                      }}
+                      className="text-white hover:text-yellow-400 transition-colors p-2"
+                    >
+                      {isFullscreen ? (
+                        <Minimize className="w-5 h-5" />
+                      ) : (
+                        <Maximize className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
