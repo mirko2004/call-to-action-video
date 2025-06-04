@@ -13,19 +13,18 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [hasStarted, setHasStarted] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showFinalPopup, setShowFinalPopup] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(30); // durata video Vimeo in secondi
+  const [videoDuration, setVideoDuration] = useState(30);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
   const [player, setPlayer] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [vimeoUrl, setVimeoUrl] = useState("");
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
-
-  // Stato derivato per il muto
-  const isMuted = volume === 0;
 
   // Funzione per formattare il tempo in mm:ss
   const formatTime = (seconds: number) => {
@@ -34,9 +33,24 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Inizializza Vimeo Player con preload
+  // Rilevamento iOS e costruzione URL Vimeo
   useEffect(() => {
-    // Carica Vimeo Player API
+    const iOS = typeof navigator !== 'undefined' && 
+               /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+               !window.MSStream;
+    setIsIOS(iOS);
+    
+    const url = iOS ? 
+      'https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=1&autoplay=0&preload=auto' :
+      'https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=0&autoplay=0&preload=auto';
+    
+    setVimeoUrl(url);
+  }, []);
+
+  // Inizializza Vimeo Player
+  useEffect(() => {
+    if (!vimeoUrl) return;
+
     const script = document.createElement('script');
     script.src = 'https://player.vimeo.com/api/player.js';
     script.onload = () => {
@@ -44,15 +58,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         const vimeoPlayer = new window.Vimeo.Player(iframeRef.current);
         setPlayer(vimeoPlayer);
 
-        // Inizializza player senza ready()
-        console.log('Vimeo player initialized');
-
-        // Ottieni durata del video
         vimeoPlayer.getDuration().then((duration: number) => {
           setVideoDuration(Math.floor(duration));
         });
 
-        // Listener per gli eventi del video
         vimeoPlayer.on('play', () => {
           setIsPlaying(true);
           setHasStarted(true);
@@ -87,9 +96,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         document.head.removeChild(script);
       }
     };
-  }, [onVideoEnd]);
+  }, [vimeoUrl, onVideoEnd]);
 
-  // Listener per fullscreen changes
+  // Gestione fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -99,13 +108,12 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Timer per nascondere i controlli - NON nascondere in fullscreen
+  // Timer per nascondere i controlli
   const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
     }
     
-    // Non nascondere i controlli se siamo in fullscreen
     if (!isFullscreen) {
       controlsTimeout.current = setTimeout(() => {
         if (isPlaying) {
@@ -122,7 +130,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   }, []);
 
-  // Gestisci il movimento del mouse per mostrare i controlli
+  // Mostra controlli al movimento del mouse
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
@@ -150,7 +158,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     };
   }, [isPlaying, hasStarted, startControlsTimer]);
 
-  // Effetto: in fullscreen, mostra sempre i controlli e disabilita il timer
+  // Mostra sempre controlli in fullscreen
   useEffect(() => {
     if (isFullscreen) {
       setShowControls(true);
@@ -211,7 +219,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
     try {
       if (!isFullscreen) {
-        // Richiedi il fullscreen per il container
         if (container.requestFullscreen) {
           await container.requestFullscreen();
         }
@@ -240,6 +247,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return (currentTime / videoDuration) * 100;
   };
 
+  // Stato derivato per il muto
+  const isMuted = volume === 0;
+
   return (
     <>
       <div className="relative w-full max-w-2xl mx-auto space-y-6">
@@ -255,15 +265,17 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           className={`bg-slate-900 rounded-xl overflow-hidden shadow-lg relative animate-scale-in ${isFullscreen ? 'w-screen h-screen fixed inset-0 z-50 rounded-none flex items-center justify-center' : 'aspect-video'}`}
           style={{ animationDelay: '0.4s' }}
         >
-          <iframe
-            ref={iframeRef}
-            src="https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=0&autoplay=0&preload=auto"
-            className={`w-full h-full ${isFullscreen ? '' : 'aspect-video'}`}
-            frameBorder="0"
-            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
-            title="2 secondo video sito"
-            allowFullScreen
-          />
+          {vimeoUrl && (
+            <iframe
+              ref={iframeRef}
+              src={vimeoUrl}
+              className={`w-full h-full ${isFullscreen ? '' : 'aspect-video'}`}
+              frameBorder="0"
+              allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+              title="2 secondo video sito"
+              allowFullScreen
+            />
+          )}
           
           {/* Custom Play Button Overlay */}
           {!hasStarted && (
@@ -274,7 +286,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
 
-          {/* Overlay per controlli touch su mobile */}
+          {/* Overlay per controlli touch */}
           {hasStarted && (
             <div 
               className="absolute inset-0 z-10"
@@ -298,14 +310,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
           
-          {/* Controlli video personalizzati - SEMPRE visibili in fullscreen */}
+          {/* Controlli video personalizzati */}
           {hasStarted && (showControls || !isPlaying || isFullscreen) && (
             <div 
               className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
-              style={{ 
-                // In fullscreen, i controlli devono essere sempre ben visibili
-                opacity: isFullscreen ? 1 : undefined
-              }}
+              style={{ opacity: isFullscreen ? 1 : undefined }}
             >
               <div className="flex items-center space-x-4">
                 <button 
@@ -322,52 +331,60 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   )}
                 </button>
                 
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleMute();
-                  }}
-                  className="text-white hover:text-yellow-400 transition-colors p-2"
-                >
-                  {isMuted ? (
-                    <VolumeX className="w-5 h-5" />
-                  ) : (
-                    <Volume2 className="w-5 h-5" />
-                  )}
-                </button>
-                
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-24 accent-yellow-500"
-                />
+                {/* Nascondi controlli volume su iOS */}
+                {!isIOS && (
+                  <>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMute();
+                      }}
+                      className="text-white hover:text-yellow-400 transition-colors p-2"
+                    >
+                      {isMuted ? (
+                        <VolumeX className="w-5 h-5" />
+                      ) : (
+                        <Volume2 className="w-5 h-5" />
+                      )}
+                    </button>
+                    
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-24 accent-yellow-500"
+                    />
+                  </>
+                )}
               </div>
 
               <div className="flex items-center space-x-2">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFullscreen();
-                  }}
-                  className="text-white hover:text-yellow-400 transition-colors p-2"
-                >
-                  {isFullscreen ? (
-                    <Minimize className="w-5 h-5" />
-                  ) : (
-                    <Maximize className="w-5 h-5" />
-                  )}
-                </button>
+                {/* Nascondi fullscreen su iOS */}
+                {!isIOS && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFullscreen();
+                    }}
+                    className="text-white hover:text-yellow-400 transition-colors p-2"
+                  >
+                    {isFullscreen ? (
+                      <Minimize className="w-5 h-5" />
+                    ) : (
+                      <Maximize className="w-5 h-5" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Timer countdown migliorato */}
+        {/* Timer countdown */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
