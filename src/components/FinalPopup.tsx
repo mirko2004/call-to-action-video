@@ -52,7 +52,7 @@ const FinalPopup = () => {
     setHasClicked(true);
     // 🔥 QUI PUOI MODIFICARE IL LINK ESTERNO 🔥
     // Sostituisci l'URL sotto con il tuo link al questionario
-    window.open("https://esempio-questionario.com", "_blank");
+    window.open("https://984rk3s3.forms.app/untitled-form", "_blank");
   };
 
   if (isExpired) {
