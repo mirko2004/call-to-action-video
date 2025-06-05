@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
@@ -20,11 +21,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
   const [player, setPlayer] = useState<any>(null);
-  const [isIOS, setIsIOS] = useState(false);
   const [vimeoUrl, setVimeoUrl] = useState("");
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isAndroid = /Android/.test(navigator.userAgent);
+  const isMobile = isIOS || isAndroid;
 
   // Funzione per formattare il tempo in mm:ss
   const formatTime = (seconds: number) => {
@@ -35,12 +39,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   // Rilevamento iOS e costruzione URL Vimeo
   useEffect(() => {
-    const iOS = typeof navigator !== 'undefined' && 
-               /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-               !window.MSStream;
-    setIsIOS(iOS);
-    
-    const url = iOS ? 
+    const url = isIOS ? 
       'https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=1&autoplay=0&preload=auto' :
       'https://player.vimeo.com/video/1090015233?title=0&byline=0&portrait=0&badge=0&autopause=0&player_id=0&app_id=58479&controls=0&autoplay=0&preload=auto';
     
@@ -105,23 +104,28 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
   }, []);
 
-  // Timer per nascondere i controlli
+  // Timer per nascondere i controlli (solo desktop)
   const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
     }
     
-    if (!isFullscreen) {
+    // Nascondi controlli solo su desktop dopo 3 secondi
+    if (!isMobile) {
       controlsTimeout.current = setTimeout(() => {
-        if (isPlaying) {
+        if (isPlaying && !isFullscreen) {
           setShowControls(false);
         }
       }, 3000);
     }
-  }, [isPlaying, isFullscreen]);
+  }, [isPlaying, isFullscreen, isMobile]);
 
   const clearControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
@@ -130,12 +134,12 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   }, []);
 
-  // Mostra controlli al movimento del mouse
+  // Mostra controlli al movimento del mouse (solo desktop)
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
         setShowControls(true);
-        if (isPlaying) {
+        if (isPlaying && !isMobile) {
           startControlsTimer();
         }
       }
@@ -144,7 +148,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     const handleTouch = () => {
       if (hasStarted) {
         setShowControls(true);
-        if (isPlaying) {
+        if (isPlaying && !isMobile) {
           startControlsTimer();
         }
       }
@@ -156,15 +160,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('touchstart', handleTouch);
     };
-  }, [isPlaying, hasStarted, startControlsTimer]);
-
-  // Mostra sempre controlli in fullscreen
-  useEffect(() => {
-    if (isFullscreen) {
-      setShowControls(true);
-      clearControlsTimer();
-    }
-  }, [isFullscreen, clearControlsTimer]);
+  }, [isPlaying, hasStarted, startControlsTimer, isMobile]);
 
   const handlePlayClick = async () => {
     if (player) {
@@ -221,9 +217,15 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       if (!isFullscreen) {
         if (container.requestFullscreen) {
           await container.requestFullscreen();
+        } else if ((container as any).webkitRequestFullscreen) {
+          await (container as any).webkitRequestFullscreen();
         }
       } else {
-        await document.exitFullscreen();
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
       }
     } catch (error) {
       console.log("Fullscreen error:", error);
@@ -257,6 +259,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         <div className="text-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <p className="text-white/70 text-sm">
             🎯 Questo è il contenuto finale - dopo aver guardato tutto il video si aprirà l'accesso alle selezioni
+          </p>
+          <p className="text-yellow-400 text-sm mt-1">
+            📱 Seguimi su Instagram: <span className="font-semibold">@mirkotaranto_</span>
           </p>
         </div>
 
@@ -293,7 +298,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               onContextMenu={(e) => e.preventDefault()}
               onClick={() => {
                 setShowControls(true);
-                if (isPlaying) {
+                if (isPlaying && !isMobile) {
                   startControlsTimer();
                 }
               }}
@@ -310,11 +315,10 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
           
-          {/* Controlli video personalizzati */}
-          {hasStarted && (showControls || !isPlaying || isFullscreen) && (
+          {/* Controlli video personalizzati - sempre visibili su mobile */}
+          {hasStarted && (isMobile || showControls || !isPlaying) && (
             <div 
               className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
-              style={{ opacity: isFullscreen ? 1 : undefined }}
             >
               <div className="flex items-center space-x-4">
                 <button 
@@ -331,8 +335,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   )}
                 </button>
                 
-                {/* Nascondi controlli volume su iOS */}
-                {!isIOS && (
+                {/* Volume solo per desktop o se non in fullscreen su mobile */}
+                {(!isMobile || !isFullscreen) && (
                   <>
                     <button 
                       onClick={(e) => {
@@ -363,22 +367,19 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Nascondi fullscreen su iOS */}
-                {!isIOS && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFullscreen();
-                    }}
-                    className="text-white hover:text-yellow-400 transition-colors p-2"
-                  >
-                    {isFullscreen ? (
-                      <Minimize className="w-5 h-5" />
-                    ) : (
-                      <Maximize className="w-5 h-5" />
-                    )}
-                  </button>
-                )}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFullscreen();
+                  }}
+                  className="text-white hover:text-yellow-400 transition-colors p-2"
+                >
+                  {isFullscreen ? (
+                    <Minimize className="w-5 h-5" />
+                  ) : (
+                    <Maximize className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
           )}
