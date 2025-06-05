@@ -71,22 +71,36 @@ const VideoPlayer = () => {
 
   const isMuted = volume === 0;
 
-  // Force landscape orientation when entering fullscreen on mobile
+  // Enhanced fullscreen function with iOS support
   const enterFullscreenWithLandscape = useCallback(async () => {
     const container = containerRef.current;
-    if (!container) return;
+    const iframe = document.getElementById('vimeo-player');
+    
+    if (!container && !iframe) return;
 
     try {
-      if (container.requestFullscreen) {
-        await container.requestFullscreen();
-      } else if ((container as any).webkitRequestFullscreen) {
-        await (container as any).webkitRequestFullscreen();
+      // Try iframe fullscreen first (works better on iOS)
+      if (iframe && isIOS) {
+        if ((iframe as any).webkitEnterFullscreen) {
+          await (iframe as any).webkitEnterFullscreen();
+        } else if ((iframe as any).requestFullscreen) {
+          await (iframe as any).requestFullscreen();
+        }
+      } else if (container) {
+        // Container fullscreen for other devices
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if ((container as any).webkitRequestFullscreen) {
+          await (container as any).webkitRequestFullscreen();
+        } else if ((container as any).webkitEnterFullscreen) {
+          await (container as any).webkitEnterFullscreen();
+        }
       }
 
       // Force landscape orientation on mobile devices
       if (isMobile && (screen as any).orientation && (screen as any).orientation.lock) {
         try {
-          await (screen as any).orientation.lock('landscape');
+          await (screen as any).orientation.lock('landscape-primary');
         } catch (error) {
           console.log("Orientation lock not supported:", error);
         }
@@ -94,12 +108,14 @@ const VideoPlayer = () => {
     } catch (error) {
       console.error("Fullscreen error:", error);
     }
-  }, [isMobile]);
+  }, [isMobile, isIOS]);
 
-  // Listener per fullscreen changes
+  // Enhanced fullscreen change listener
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const isCurrentlyFullscreen = !!document.fullscreenElement;
+      const isCurrentlyFullscreen = !!(document.fullscreenElement || 
+        (document as any).webkitFullscreenElement || 
+        (document as any).webkitCurrentFullScreenElement);
       setIsFullscreen(isCurrentlyFullscreen);
       setShowControls(true);
       
@@ -113,11 +129,17 @@ const VideoPlayer = () => {
       }
     };
 
+    // Listen to all fullscreen change events
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitbeginfullscreen', handleFullscreenChange);
+    document.addEventListener('webkitendfullscreen', handleFullscreenChange);
+    
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitbeginfullscreen', handleFullscreenChange);
+      document.removeEventListener('webkitendfullscreen', handleFullscreenChange);
     };
   }, [isMobile]);
 
@@ -307,6 +329,8 @@ const VideoPlayer = () => {
           await document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
           await (document as any).webkitExitFullscreen();
+        } else if ((document as any).webkitCancelFullScreen) {
+          await (document as any).webkitCancelFullScreen();
         }
       } catch (error) {
         console.error("Exit fullscreen error:", error);
@@ -368,7 +392,7 @@ const VideoPlayer = () => {
                   <div style={{ padding: isFullscreen ? '0' : '56.25% 0 0 0', position: 'relative', height: isFullscreen ? '100%' : 'auto' }}>
                     <iframe
                       id="vimeo-player"
-                      src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0`}
+                      src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0&playsinline=1`}
                       frameBorder="0"
                       allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
                       style={{ 
@@ -383,6 +407,8 @@ const VideoPlayer = () => {
                       }}
                       title="Video Esclusivo"
                       allowFullScreen
+                      playsInline
+                      webkitAllowFullScreen
                     ></iframe>
                   </div>
                 </div>

@@ -1,4 +1,3 @@
-
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
@@ -30,22 +29,36 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const isAndroid = /Android/.test(navigator.userAgent);
   const isMobile = isIOS || isAndroid;
 
-  // Force landscape orientation when entering fullscreen on mobile
+  // Enhanced fullscreen function with iOS support
   const enterFullscreenWithLandscape = useCallback(async () => {
     const container = containerRef.current;
-    if (!container) return;
+    const iframe = iframeRef.current;
+    
+    if (!container && !iframe) return;
 
     try {
-      if (container.requestFullscreen) {
-        await container.requestFullscreen();
-      } else if ((container as any).webkitRequestFullscreen) {
-        await (container as any).webkitRequestFullscreen();
+      // Try iframe fullscreen first (works better on iOS)
+      if (iframe && isIOS) {
+        if ((iframe as any).webkitEnterFullscreen) {
+          await (iframe as any).webkitEnterFullscreen();
+        } else if ((iframe as any).requestFullscreen) {
+          await (iframe as any).requestFullscreen();
+        }
+      } else if (container) {
+        // Container fullscreen for other devices
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if ((container as any).webkitRequestFullscreen) {
+          await (container as any).webkitRequestFullscreen();
+        } else if ((container as any).webkitEnterFullscreen) {
+          await (container as any).webkitEnterFullscreen();
+        }
       }
 
       // Force landscape orientation on mobile devices
       if (isMobile && (screen as any).orientation && (screen as any).orientation.lock) {
         try {
-          await (screen as any).orientation.lock('landscape');
+          await (screen as any).orientation.lock('landscape-primary');
         } catch (error) {
           console.log("Orientation lock not supported:", error);
         }
@@ -53,7 +66,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     } catch (error) {
       console.error("Fullscreen error:", error);
     }
-  }, [isMobile]);
+  }, [isMobile, isIOS]);
 
   // Rilevamento iOS e costruzione URL Vimeo
   useEffect(() => {
@@ -116,7 +129,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   // Gestione fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const isCurrentlyFullscreen = !!document.fullscreenElement;
+      const isCurrentlyFullscreen = !!(document.fullscreenElement || 
+        (document as any).webkitFullscreenElement || 
+        (document as any).webkitCurrentFullScreenElement);
       setIsFullscreen(isCurrentlyFullscreen);
       
       // Unlock orientation when exiting fullscreen
@@ -129,11 +144,17 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       }
     };
 
+    // Listen to all fullscreen change events
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitbeginfullscreen', handleFullscreenChange);
+    document.addEventListener('webkitendfullscreen', handleFullscreenChange);
+    
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitbeginfullscreen', handleFullscreenChange);
+      document.removeEventListener('webkitendfullscreen', handleFullscreenChange);
     };
   }, [isMobile]);
 
@@ -248,6 +269,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           await document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
           await (document as any).webkitExitFullscreen();
+        } else if ((document as any).webkitCancelFullScreen) {
+          await (document as any).webkitCancelFullScreen();
         }
       } catch (error) {
         console.error("Exit fullscreen error:", error);
@@ -295,12 +318,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
           {vimeoUrl && (
             <iframe
               ref={iframeRef}
-              src={vimeoUrl}
+              src={`${vimeoUrl}&playsinline=1`}
               className={`w-full h-full ${isFullscreen ? '' : 'aspect-video'}`}
               frameBorder="0"
               allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
               title="2 secondo video sito"
               allowFullScreen
+              playsInline
+              webkitAllowFullScreen
             />
           )}
           
