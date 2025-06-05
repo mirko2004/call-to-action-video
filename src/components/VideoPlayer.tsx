@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Clock, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,15 +17,26 @@ const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
       <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center animate-scale-in">
         <h2 className="text-2xl font-bold mb-4 text-yellow-400 animate-fade-in" style={{ animationDelay: '0.2s' }}>Perfetto! 🎯</h2>
         <p className="mb-6 text-gray-300 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-          Hai completato il primo step! Ora ti mostro qualcosa che ti farà capire perché questo percorso è completamente diverso dal solito.
+          Prima di continuare, è fondamentale che tu ti metta le cuffie e ti assicuri di avere almeno 30 minuti liberi da dedicare completamente a questo contenuto. Sarà un'esperienza che cambierà la tua prospettiva.
         </p>
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6">
+          <p className="text-yellow-400 font-semibold text-sm mb-2">
+            🎧 MASSIMA ATTENZIONE RICHIESTA
+          </p>
+          <p className="text-white/90 text-sm">
+            • Metti le cuffie<br />
+            • Assicurati di avere 30 minuti liberi<br />
+            • Elimina tutte le distrazioni<br />
+            • Preparati a scoprire qualcosa di completamente nuovo
+          </p>
+        </div>
         <div className="flex flex-col gap-3">
           <Button 
             onClick={handleContinue}
             className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-scale-in"
             style={{ animationDelay: '0.6s' }}
           >
-            🔥 Vai al Contenuto Esclusivo
+            🔥 Sono Pronto - Vai al Contenuto Esclusivo
           </Button>
         </div>
       </div>
@@ -63,12 +75,46 @@ const VideoPlayer = () => {
 
   const isMuted = volume === 0;
 
+  // Force landscape orientation when entering fullscreen on mobile
+  const enterFullscreenWithLandscape = useCallback(async () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    try {
+      if (container.requestFullscreen) {
+        await container.requestFullscreen();
+      } else if ((container as any).webkitRequestFullscreen) {
+        await (container as any).webkitRequestFullscreen();
+      }
+
+      // Force landscape orientation on mobile devices
+      if (isMobile && (screen as any).orientation && (screen as any).orientation.lock) {
+        try {
+          await (screen as any).orientation.lock('landscape');
+        } catch (error) {
+          console.log("Orientation lock not supported:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Fullscreen error:", error);
+    }
+  }, [isMobile]);
+
   // Listener per fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isCurrentlyFullscreen);
       setShowControls(true);
+      
+      // Unlock orientation when exiting fullscreen
+      if (!isCurrentlyFullscreen && isMobile && (screen as any).orientation && (screen as any).orientation.unlock) {
+        try {
+          (screen as any).orientation.unlock();
+        } catch (error) {
+          console.log("Orientation unlock not supported:", error);
+        }
+      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -77,70 +123,55 @@ const VideoPlayer = () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
     };
-  }, []);
+  }, [isMobile]);
 
-  // Listener per Page Visibility API (fix timer Android)
+  // Robust timer implementation for Android compatibility
   useEffect(() => {
+    let startTime = Date.now();
+    let pausedTime = 0;
+
     const handleVisibilityChange = () => {
-      if (document.hidden && accessTimerRef.current) {
-        // Pausa timer quando la pagina è nascosta
-        clearInterval(accessTimerRef.current);
-        accessTimerRef.current = null;
-        // Salva il timestamp
-        localStorage.setItem('timer_paused_at', Date.now().toString());
-        localStorage.setItem('timer_remaining', accessTimeLeft.toString());
-      } else if (!document.hidden && accessTimeLeft > 0 && !accessTimerRef.current) {
-        // Riprendi timer quando la pagina è visibile
-        const pausedAt = localStorage.getItem('timer_paused_at');
-        const remaining = localStorage.getItem('timer_remaining');
-        
-        if (pausedAt && remaining) {
-          const timeElapsed = Math.floor((Date.now() - parseInt(pausedAt)) / 1000);
-          const newTimeLeft = Math.max(0, parseInt(remaining) - timeElapsed);
-          setAccessTimeLeft(newTimeLeft);
-          
-          // Pulisci localStorage
-          localStorage.removeItem('timer_paused_at');
-          localStorage.removeItem('timer_remaining');
-        }
-        
-        startAccessTimer();
+      if (document.hidden) {
+        pausedTime = Date.now();
+      } else if (pausedTime > 0) {
+        const pauseDuration = Date.now() - pausedTime;
+        startTime += pauseDuration;
+        pausedTime = 0;
       }
     };
 
-    const handleFocus = () => {
-      // Force refresh timer when app gets focus
-      setForceUpdate(prev => prev + 1);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [accessTimeLeft]);
-
-  const startAccessTimer = useCallback(() => {
-    if (accessTimerRef.current) {
-      clearInterval(accessTimerRef.current);
-    }
-
-    accessTimerRef.current = setInterval(() => {
-      setAccessTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(accessTimerRef.current!);
+    const updateTimer = () => {
+      if (accessTimeLeft > 0 && !document.hidden) {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = Math.max(0, accessTimeLeft - elapsed);
+        
+        if (remaining !== accessTimeLeft) {
+          setAccessTimeLeft(remaining);
+        }
+        
+        if (remaining <= 0) {
           const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
           localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
           setAccessExpired(true);
           setShowButton(false);
-          return 0;
+          return;
         }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [userIP]);
+      }
+      
+      if (accessTimeLeft > 0) {
+        requestAnimationFrame(updateTimer);
+      }
+    };
+
+    if (accessTimeLeft > 0) {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      requestAnimationFrame(updateTimer);
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [accessTimeLeft, userIP]);
 
   // Simula il rilevamento dell'IP
   useEffect(() => {
@@ -159,18 +190,6 @@ const VideoPlayer = () => {
       setAccessTimeLeft(300);
     }
   }, [showButton, accessExpired]);
-
-  // Timer countdown
-  useEffect(() => {
-    if (accessTimeLeft > 0) {
-      startAccessTimer();
-      return () => {
-        if (accessTimerRef.current) {
-          clearInterval(accessTimerRef.current);
-        }
-      };
-    }
-  }, [accessTimeLeft, userIP]);
 
   const formatAccessTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -267,15 +286,13 @@ const VideoPlayer = () => {
       clearTimeout(controlsTimeout.current);
     }
     
-    // Nascondi controlli solo su desktop dopo 3 secondi
-    if (!isMobile) {
-      controlsTimeout.current = setTimeout(() => {
-        if (isPlaying && !isFullscreen) {
-          setShowControls(false);
-        }
-      }, 3000);
-    }
-  }, [isPlaying, isFullscreen, isMobile]);
+    // Nascondi controlli dopo 3 secondi
+    controlsTimeout.current = setTimeout(() => {
+      if (isPlaying && !isFullscreen) {
+        setShowControls(false);
+      }
+    }, 3000);
+  }, [isPlaying, isFullscreen]);
 
   const clearControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
@@ -284,6 +301,7 @@ const VideoPlayer = () => {
     }
   }, []);
 
+  // Improved mobile touch controls
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
@@ -293,9 +311,32 @@ const VideoPlayer = () => {
         }
       }
     };
+
+    const handleTouch = (e: TouchEvent) => {
+      if (hasStarted) {
+        e.preventDefault();
+        setShowControls(true);
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      }
+    };
     
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    if (isMobile) {
+      window.addEventListener('touchstart', handleTouch, { passive: false });
+      window.addEventListener('touchend', handleTouch, { passive: false });
+    } else {
+      window.addEventListener('mousemove', handleMouseMove);
+    }
+    
+    return () => {
+      if (isMobile) {
+        window.removeEventListener('touchstart', handleTouch);
+        window.removeEventListener('touchend', handleTouch);
+      } else {
+        window.removeEventListener('mousemove', handleMouseMove);
+      }
+    };
   }, [isPlaying, hasStarted, startControlsTimer, isMobile]);
 
   const handlePlayClick = () => {
@@ -338,25 +379,18 @@ const VideoPlayer = () => {
   };
 
   const toggleFullscreen = async () => {
-    const container = containerRef.current;
-    if (!container || !playerRef.current) return;
-
-    try {
-      if (isFullscreen) {
+    if (isFullscreen) {
+      try {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
           await (document as any).webkitExitFullscreen();
         }
-      } else {
-        if (container.requestFullscreen) {
-          await container.requestFullscreen();
-        } else if ((container as any).webkitRequestFullscreen) {
-          await (container as any).webkitRequestFullscreen();
-        }
+      } catch (error) {
+        console.error("Exit fullscreen error:", error);
       }
-    } catch (error) {
-      console.error("Fullscreen error:", error);
+    } else {
+      await enterFullscreenWithLandscape();
     }
   };
 
@@ -406,9 +440,6 @@ const VideoPlayer = () => {
           </h1>
           <p className="text-gray-400 max-w-xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
             Guarda attentamente per sbloccare l'accesso al video completo
-          </p>
-          <p className="text-yellow-400 text-sm mt-2 animate-fade-in" style={{ animationDelay: '0.6s' }}>
-            📱 Seguimi su Instagram: <span className="font-semibold">@mirkotaranto_</span>
           </p>
         </header>
 
@@ -464,6 +495,18 @@ const VideoPlayer = () => {
                 <div 
                   className="absolute inset-0 z-10"
                   onContextMenu={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setShowControls(true);
+                    if (isPlaying) {
+                      startControlsTimer();
+                    }
+                  }}
+                  onTouchStart={() => {
+                    setShowControls(true);
+                    if (isPlaying) {
+                      startControlsTimer();
+                    }
+                  }}
                 />
                 
                 <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
@@ -475,10 +518,13 @@ const VideoPlayer = () => {
                 
                 {/* Controlli per mobile in fullscreen - solo play/pause, volume e exit */}
                 {isFullscreen && isMobile ? (
-                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between">
+                  <div className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                     <div className="flex items-center space-x-4">
                       <button 
-                        onClick={togglePlayPause}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePlayPause();
+                        }}
                         className="text-white hover:text-yellow-400 transition-colors p-2"
                       >
                         {isPlaying ? (
@@ -489,7 +535,10 @@ const VideoPlayer = () => {
                       </button>
                       
                       <button 
-                        onClick={toggleMute}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleMute();
+                        }}
                         className="text-white hover:text-yellow-400 transition-colors p-2"
                       >
                         {isMuted ? (
@@ -506,12 +555,16 @@ const VideoPlayer = () => {
                         step="0.01"
                         value={isMuted ? 0 : volume}
                         onChange={handleVolumeChange}
+                        onClick={(e) => e.stopPropagation()}
                         className="w-16 accent-yellow-500"
                       />
                     </div>
 
                     <button 
-                      onClick={toggleFullscreen}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullscreen();
+                      }}
                       className="text-white hover:text-yellow-400 transition-colors p-2"
                     >
                       <Minimize className="w-5 h-5" />
@@ -521,12 +574,15 @@ const VideoPlayer = () => {
                   /* Controlli normali per desktop e mobile non-fullscreen */
                   <div 
                     className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
-                      isMobile || showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                      showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
                     }`}
                   >
                     <div className="flex items-center space-x-4">
                       <button 
-                        onClick={togglePlayPause}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePlayPause();
+                        }}
                         className="text-white hover:text-yellow-400 transition-colors"
                       >
                         {isPlaying ? (
@@ -540,7 +596,10 @@ const VideoPlayer = () => {
                       {(!isMobile || !isFullscreen) && (
                         <>
                           <button 
-                            onClick={toggleMute}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleMute();
+                            }}
                             className="text-white hover:text-yellow-400 transition-colors"
                           >
                             {isMuted ? (
@@ -557,6 +616,7 @@ const VideoPlayer = () => {
                             step="0.01"
                             value={isMuted ? 0 : volume}
                             onChange={handleVolumeChange}
+                            onClick={(e) => e.stopPropagation()}
                             className="w-24 accent-yellow-500"
                           />
                         </>
@@ -564,7 +624,10 @@ const VideoPlayer = () => {
                     </div>
 
                     <button 
-                      onClick={toggleFullscreen}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFullscreen();
+                      }}
                       className="text-white hover:text-yellow-400 transition-colors p-2"
                     >
                       {isFullscreen ? (
@@ -581,12 +644,6 @@ const VideoPlayer = () => {
 
           {hasStarted && !videoEnded && videoDuration > 0 && (
             <div className="text-center bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4 animate-fade-in">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Timer className="w-5 h-5 text-blue-400 animate-pulse" />
-                <span className="text-blue-400 font-semibold text-lg">
-                  {Math.max(0, videoDuration - currentTime)} secondi rimanenti
-                </span>
-              </div>
               <p className="text-white/90 text-sm animate-fade-in" style={{ animationDelay: '0.2s' }}>
                 Continua a guardare fino alla fine per sbloccare il contenuto
               </p>

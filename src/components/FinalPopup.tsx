@@ -6,41 +6,66 @@ import { Timer, Lock, CheckCircle } from "lucide-react";
 const FinalPopup = () => {
   const [timeLeft, setTimeLeft] = useState(120); // 2 minuti = 120 secondi
   const [isExpired, setIsExpired] = useState(false);
-  const [userIP, setUserIP] = useState<string>("");
   const [hasClicked, setHasClicked] = useState(false);
 
-  // Simula il rilevamento dell'IP
+  // Robust timer implementation for Android compatibility
   useEffect(() => {
-    // In una app reale useresti un servizio per rilevare l'IP
-    const simulatedIP = "192.168.1." + Math.floor(Math.random() * 255);
-    setUserIP(simulatedIP);
-    
-    // Controlla se questo IP ha già perso l'opportunità
-    const blockedUntil = localStorage.getItem(`blocked_${simulatedIP}`);
+    let startTime = Date.now();
+    let pausedTime = 0;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        pausedTime = Date.now();
+      } else if (pausedTime > 0) {
+        const pauseDuration = Date.now() - pausedTime;
+        startTime += pauseDuration;
+        pausedTime = 0;
+      }
+    };
+
+    const updateTimer = () => {
+      if (hasClicked) return; // Stop timer if clicked
+      
+      if (!document.hidden) {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = Math.max(0, timeLeft - elapsed);
+        
+        if (remaining !== timeLeft) {
+          setTimeLeft(remaining);
+        }
+        
+        if (remaining <= 0) {
+          setIsExpired(true);
+          // Block for 10 minutes
+          const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
+          localStorage.setItem(`blocked_finalPopup`, blockedUntil.toString());
+          return;
+        }
+      }
+      
+      if (!hasClicked && timeLeft > 0) {
+        requestAnimationFrame(updateTimer);
+      }
+    };
+
+    if (!hasClicked && timeLeft > 0) {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      requestAnimationFrame(updateTimer);
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [timeLeft, hasClicked]);
+
+  // Check if blocked on component mount
+  useEffect(() => {
+    const blockedUntil = localStorage.getItem(`blocked_finalPopup`);
     if (blockedUntil && new Date().getTime() < parseInt(blockedUntil)) {
       setIsExpired(true);
       return;
     }
   }, []);
-
-  // Timer countdown - si ferma quando hasClicked è true
-  useEffect(() => {
-    if (hasClicked) return; // Ferma il timer se ha già cliccato
-    
-    if (timeLeft <= 0) {
-      setIsExpired(true);
-      // Blocca questo IP per 10 minuti
-      const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
-      localStorage.setItem(`blocked_${userIP}`, blockedUntil.toString());
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setTimeLeft(prev => prev - 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [timeLeft, userIP, hasClicked]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
