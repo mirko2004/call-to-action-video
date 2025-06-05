@@ -313,7 +313,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
 
-          {/* Overlay per controlli touch */}
+          {/* Overlay per controlli touch - limitato al video container */}
           {hasStarted && (
             <div 
               className="absolute inset-0 z-10"

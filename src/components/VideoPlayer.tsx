@@ -17,7 +17,7 @@ const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
       <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center animate-scale-in">
         <h2 className="text-2xl font-bold mb-4 text-yellow-400 animate-fade-in" style={{ animationDelay: '0.2s' }}>Perfetto! 🎯</h2>
         <p className="mb-6 text-gray-300 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-          Prima di continuare, è fondamentale che tu ti metta le cuffie e ti assicuri di avere almeno 30 minuti liberi da dedicare completamente a questo contenuto. Sarà un'esperienza che cambierà la tua prospettiva.
+          Mettiti le cuffie e assicurati di avere almeno 30 minuti liberi da dedicare completamente al prossimo contenuto, senza distrazioni.
         </p>
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6">
           <p className="text-yellow-400 font-semibold text-sm mb-2">
@@ -54,9 +54,6 @@ const VideoPlayer = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
-  const [accessTimeLeft, setAccessTimeLeft] = useState(0);
-  const [accessExpired, setAccessExpired] = useState(false);
-  const [userIP, setUserIP] = useState<string>("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
   
@@ -64,7 +61,6 @@ const VideoPlayer = () => {
   const playerRef = useRef<any>(null);
   const playerInitializedRef = useRef(false);
   const previousVolumeRef = useRef(0.7);
-  const accessTimerRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
@@ -124,78 +120,6 @@ const VideoPlayer = () => {
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
     };
   }, [isMobile]);
-
-  // Robust timer implementation for Android compatibility
-  useEffect(() => {
-    let startTime = Date.now();
-    let pausedTime = 0;
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        pausedTime = Date.now();
-      } else if (pausedTime > 0) {
-        const pauseDuration = Date.now() - pausedTime;
-        startTime += pauseDuration;
-        pausedTime = 0;
-      }
-    };
-
-    const updateTimer = () => {
-      if (accessTimeLeft > 0 && !document.hidden) {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const remaining = Math.max(0, accessTimeLeft - elapsed);
-        
-        if (remaining !== accessTimeLeft) {
-          setAccessTimeLeft(remaining);
-        }
-        
-        if (remaining <= 0) {
-          const blockedUntil = new Date().getTime() + (10 * 60 * 1000);
-          localStorage.setItem(`video_blocked_${userIP}`, blockedUntil.toString());
-          setAccessExpired(true);
-          setShowButton(false);
-          return;
-        }
-      }
-      
-      if (accessTimeLeft > 0) {
-        requestAnimationFrame(updateTimer);
-      }
-    };
-
-    if (accessTimeLeft > 0) {
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      requestAnimationFrame(updateTimer);
-    }
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [accessTimeLeft, userIP]);
-
-  // Simula il rilevamento dell'IP
-  useEffect(() => {
-    const simulatedIP = "192.168.1." + Math.floor(Math.random() * 255);
-    setUserIP(simulatedIP);
-    
-    const blockedUntil = localStorage.getItem(`video_blocked_${simulatedIP}`);
-    if (blockedUntil && new Date().getTime() < parseInt(blockedUntil)) {
-      setAccessExpired(true);
-    }
-  }, []);
-
-  // Timer per l'accesso al video
-  useEffect(() => {
-    if (showButton && !accessExpired && accessTimeLeft === 0) {
-      setAccessTimeLeft(300);
-    }
-  }, [showButton, accessExpired]);
-
-  const formatAccessTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -346,9 +270,7 @@ const VideoPlayer = () => {
   };
 
   const handleButtonClick = () => {
-    if (!accessExpired) {
-      setShowPopup(true);
-    }
+    setShowPopup(true);
   };
 
   const handleContinue = () => {
@@ -403,33 +325,6 @@ const VideoPlayer = () => {
     if (videoDuration === 0) return 0;
     return (currentTime / videoDuration) * 100;
   };
-
-  if (accessExpired) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center animate-fade-in">
-        <div className="w-full max-w-md mx-auto text-center space-y-6">
-          <div className="text-red-400 text-6xl mb-6 animate-scale-in">⏰</div>
-          <h2 className="text-3xl font-bold text-red-400 mb-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            Tempo Scaduto
-          </h2>
-          <p className="text-white/80 leading-relaxed mb-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            Il tempo per accedere al contenuto è scaduto. L'opportunità non è più disponibile.
-          </p>
-          <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/50 rounded-xl p-4 animate-scale-in" style={{ animationDelay: '0.6s' }}>
-            <p className="text-red-400 font-semibold text-sm mb-2">
-              💬 Vuoi una seconda possibilità?
-            </p>
-            <p className="text-white/90 text-sm">
-              Contattami direttamente per vedere se posso fare un'eccezione.
-            </p>
-            <p className="text-white/90 text-sm mt-2">
-              📱 Instagram: <span className="text-yellow-400 font-semibold">@mirkotaranto_</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 flex flex-col items-center justify-center">
@@ -492,6 +387,7 @@ const VideoPlayer = () => {
                   </div>
                 </div>
                 
+                {/* Overlay solo per i controlli del video - limitato al video container */}
                 <div 
                   className="absolute inset-0 z-10"
                   onContextMenu={(e) => e.preventDefault()}
@@ -650,7 +546,7 @@ const VideoPlayer = () => {
             </div>
           )}
 
-          {showButton && !accessExpired && (
+          {showButton && (
             <div className="text-center bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-6 animate-fade-in space-y-4">
               <p className="text-white/90 text-sm mb-4 leading-relaxed animate-slide-in-right" style={{ animationDelay: '0.2s' }}>
                 🎯 <span className="font-semibold text-yellow-400">Perfetto!</span><br />
@@ -665,23 +561,6 @@ const VideoPlayer = () => {
               >
                 🔥 Accedi al Contenuto Esclusivo
               </Button>
-
-              {accessTimeLeft > 0 && (
-                <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 mt-4 animate-pulse">
-                  <div className="flex items-center justify-center space-x-2 mb-2">
-                    <Clock className="w-5 h-5 text-red-400 animate-pulse" />
-                    <span className="text-red-400 font-bold text-xl">
-                      {formatAccessTime(accessTimeLeft)}
-                    </span>
-                  </div>
-                  <p className="text-white/90 text-sm animate-fade-in" style={{ animationDelay: '0.6s' }}>
-                    ⚠️ Tempo rimasto per accedere al contenuto
-                  </p>
-                  <p className="text-white/70 text-xs mt-2 animate-fade-in" style={{ animationDelay: '0.8s' }}>
-                    Dopo questo tempo, l'opportunità sparirà per sempre
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </div>
