@@ -1,4 +1,3 @@
-
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Timer, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
@@ -26,7 +25,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const previousVolumeRef = useRef(0.7);
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // Fix for TypeScript error
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
   const isAndroid = /Android/.test(navigator.userAgent);
   const isMobile = isIOS || isAndroid;
 
@@ -315,11 +315,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
           
-          {/* Controlli video personalizzati - sempre visibili su mobile */}
-          {hasStarted && (isMobile || showControls || !isPlaying) && (
-            <div 
-              className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
-            >
+          {/* Controlli per mobile in fullscreen - solo play/pause, volume e exit */}
+          {hasStarted && isFullscreen && isMobile ? (
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <button 
                   onClick={(e) => {
@@ -335,68 +333,120 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   )}
                 </button>
                 
-                {/* Volume solo per desktop o se non in fullscreen su mobile */}
-                {(!isMobile || !isFullscreen) && (
-                  <>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleMute();
-                      }}
-                      className="text-white hover:text-yellow-400 transition-colors p-2"
-                    >
-                      {isMuted ? (
-                        <VolumeX className="w-5 h-5" />
-                      ) : (
-                        <Volume2 className="w-5 h-5" />
-                      )}
-                    </button>
-                    
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeChange}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-24 accent-yellow-500"
-                    />
-                  </>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2">
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleFullscreen();
+                    toggleMute();
                   }}
                   className="text-white hover:text-yellow-400 transition-colors p-2"
                 >
-                  {isFullscreen ? (
-                    <Minimize className="w-5 h-5" />
+                  {isMuted ? (
+                    <VolumeX className="w-5 h-5" />
                   ) : (
-                    <Maximize className="w-5 h-5" />
+                    <Volume2 className="w-5 h-5" />
                   )}
                 </button>
+                
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={isMuted ? 0 : volume}
+                  onChange={handleVolumeChange}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-16 accent-yellow-500"
+                />
               </div>
+
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFullscreen();
+                }}
+                className="text-white hover:text-yellow-400 transition-colors p-2"
+              >
+                <Minimize className="w-5 h-5" />
+              </button>
             </div>
+          ) : (
+            /* Controlli normali per desktop e mobile non-fullscreen */
+            hasStarted && (isMobile || showControls || !isPlaying) && (
+              <div 
+                className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300"
+              >
+                <div className="flex items-center space-x-4">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlayPause();
+                    }}
+                    className="text-white hover:text-yellow-400 transition-colors p-2"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-6 h-6" />
+                    ) : (
+                      <Play className="w-6 h-6" fill="currentColor" />
+                    )}
+                  </button>
+                  
+                  {/* Volume solo per desktop o se non in fullscreen su mobile */}
+                  {(!isMobile || !isFullscreen) && (
+                    <>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleMute();
+                        }}
+                        className="text-white hover:text-yellow-400 transition-colors p-2"
+                      >
+                        {isMuted ? (
+                          <VolumeX className="w-5 h-5" />
+                        ) : (
+                          <Volume2 className="w-5 h-5" />
+                        )}
+                      </button>
+                      
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-24 accent-yellow-500"
+                      />
+                    </>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFullscreen();
+                    }}
+                    className="text-white hover:text-yellow-400 transition-colors p-2"
+                  >
+                    {isFullscreen ? (
+                      <Minimize className="w-5 h-5" />
+                    ) : (
+                      <Maximize className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )
           )}
         </div>
 
-        {/* Timer countdown */}
+        {/* Timer countdown - solo messaggio senza tempo rimanente */}
         {hasStarted && showTimer && currentTime < videoDuration && (
           <div 
             className="text-center bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-4 animate-pulse"
             key={`timer-${forceUpdate}`}
           >
-            <div className="flex items-center justify-center space-x-2 mb-2">
-              <Timer className="w-5 h-5 text-red-400 animate-pulse" />
-              <span className="text-red-400 font-semibold text-lg">
-                {formatTime(videoDuration - currentTime)} rimanenti
-              </span>
-            </div>
             <p className="text-white/90 text-sm leading-relaxed">
               🚨 <span className="font-semibold text-red-400">CONTENUTO FINALE</span> - L'accesso alle selezioni si sbloccherà tra poco
             </p>

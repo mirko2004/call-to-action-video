@@ -82,6 +82,9 @@ const FinalPopup = () => {
             <p className="text-white/80 text-xs">
               Fai una breve presentazione di te per farmi capire che hai veramente voglia di scoprire di più questo mondo.
             </p>
+            <p className="text-yellow-400 text-sm mt-3 font-semibold">
+              📱 Instagram: @mirkotaranto_
+            </p>
           </div>
         </div>
       </div>
@@ -151,10 +154,6 @@ const FinalPopup = () => {
         >
           {hasClicked ? "🔄 Riapri Questionario" : "🚀 Accedi alle Selezioni - Compila Qui"}
         </Button>
-        
-        <p className="text-white/60 text-xs">
-          IP monitorato: {userIP}
-        </p>
       </div>
     </div>
   );
