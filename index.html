@@ -1,26 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>mirko taranto</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Call To Action Video</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="video-container">
+        <video id="myVideo" preload="auto" playsinline>
+            <source src="videos/video1.mp4" type="video/mp4">
+            Il tuo browser non supporta il tag video.
+        </video>
+        <div class="overlay-play-button" id="overlayPlayButton">
+            <i class="fas fa-play"></i>
+        </div>
+        <div class="custom-controls" id="customControls">
+            <button id="playPauseBtn"><i class="fas fa-play"></i></button>
+            <div class="volume-container">
+                <button id="muteBtn"><i class="fas fa-volume-up"></i></button>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+            </div>
+            <div class="time-container">
+                <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+            </div>
+            <input type="range" id="progressBar" value="0" min="0" max="100" step="0.1">
+            <button id="fullscreenBtn"><i class="fas fa-expand"></i></button>
+        </div>
+    </div>
 
-    <meta property="og:title" content="call-to-action-video" />
-    <meta property="og:description" content="Lovable Generated Project" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <div class="video-container">
+        <video id="myVideo2" preload="auto" playsinline>
+            <source src="videos/video2.mp4" type="video/mp4">
+            Il tuo browser non supporta il tag video.
+        </video>
+        <div class="overlay-play-button" id="overlayPlayButton2">
+            <i class="fas fa-play"></i>
+        </div>
+        <div class="custom-controls" id="customControls2">
+            <button id="playPauseBtn2"><i class="fas fa-play"></i></button>
+            <div class="volume-container">
+                <button id="muteBtn2"><i class="fas fa-volume-up"></i></button>
+                <input type="range" id="volumeSlider2" min="0" max="1" step="0.01" value="1">
+            </div>
+            <div class="time-container">
+                <span id="currentTime2">0:00</span> / <span id="duration2">0:00</span>
+            </div>
+            <input type="range" id="progressBar2" value="0" min="0" max="100" step="0.1">
+            <button id="fullscreenBtn2"><i class="fas fa-expand"></i></button>
+        </div>
+    </div>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
-
-  <body>
-    <div id="root"></div>
-    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <script src="script.js"></script>
+</body>
 </html>
