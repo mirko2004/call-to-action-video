@@ -422,6 +422,14 @@ const VideoPlayer = () => {
         </header>
 
         <div className="relative w-full max-w-2xl mx-auto space-y-6">
+          {/* iPhone Instructions */}
+          <div className="text-center animate-fade-in" style={{ animationDelay: '0.5s' }}>
+            <p className="text-yellow-400/80 text-xs leading-relaxed">
+              📱 Se hai iPhone e non riesci a mettere lo schermo intero,<br />
+              metti il telefono orizzontale (con la rotazione schermo attiva) per vederlo più chiaramente
+            </p>
+          </div>
+
           <div className="text-center animate-fade-in" style={{ animationDelay: '0.6s' }}>
             <p className="text-white/70 text-sm">
               💡 Dopo aver visto tutto il video apparirà il pulsante per continuare
@@ -552,10 +560,10 @@ const VideoPlayer = () => {
               <Button
                 onClick={handleButtonClick}
                 size="lg"
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-6 py-3 text-base lg:text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full max-w-xs mx-auto animate-scale-in"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-4 py-3 text-sm lg:text-base rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full max-w-xs mx-auto animate-scale-in leading-tight"
                 style={{ animationDelay: '0.4s' }}
               >
-                🔥 Accedi al Contenuto Esclusivo
+                🔥 Sono Pronto - Vai al<br className="sm:hidden" /> Contenuto Esclusivo
               </Button>
             </div>
           )}

@@ -336,6 +336,14 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   return (
     <>
       <div className="relative w-full max-w-2xl mx-auto space-y-6">
+        {/* iPhone Instructions */}
+        <div className="text-center animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <p className="text-yellow-400/80 text-xs leading-relaxed">
+            📱 Se hai iPhone e non riesci a mettere lo schermo intero,<br />
+            metti il telefono orizzontale (con la rotazione schermo attiva) per vederlo più chiaramente
+          </p>
+        </div>
+
         <div className="text-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <p className="text-white/70 text-sm">
             🎯 Questo è il contenuto finale - dopo aver guardato tutto il video si aprirà l'accesso alle selezioni
