@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, Volume2, VolumeX, Timer, Clock, Maximize, Minimize } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
@@ -55,94 +54,118 @@ const VideoPlayer = () => {
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
   const playerInitializedRef = useRef(false);
   const previousVolumeRef = useRef(0.7);
   const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const navigate = useNavigate();
   
-  // Fix for TypeScript error
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-  const isAndroid = /Android/.test(navigator.userAgent);
+  // Dettagli dispositivo
+  const userAgent = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+  const isAndroid = /Android/.test(userAgent);
   const isMobile = isIOS || isAndroid;
-
   const isMuted = volume === 0;
 
-  // Enhanced fullscreen function with iOS support
-  const enterFullscreenWithLandscape = useCallback(async () => {
-    const container = containerRef.current;
-    const iframe = document.getElementById('vimeo-player');
-    
-    if (!container && !iframe) return;
+  console.log('Device detected:', { isIOS, isAndroid, isMobile, userAgent });
 
-    try {
-      // Try iframe fullscreen first (works better on iOS)
-      if (iframe && isIOS) {
+  // Funzione fullscreen migliorata per iPhone
+  const enterFullscreenWithLandscape = useCallback(async () => {
+    console.log('Attempting fullscreen with landscape...');
+    
+    const iframe = iframeRef.current;
+    const container = containerRef.current;
+    
+    if (isIOS && iframe) {
+      try {
+        // Prova prima webkitEnterFullscreen sull'iframe
         if ((iframe as any).webkitEnterFullscreen) {
+          console.log('Using webkit iframe fullscreen for iOS');
           await (iframe as any).webkitEnterFullscreen();
-        } else if ((iframe as any).requestFullscreen) {
-          await (iframe as any).requestFullscreen();
+          return;
         }
-      } else if (container) {
-        // Container fullscreen for other devices
+        
+        // Fallback per requestFullscreen
+        if (iframe.requestFullscreen) {
+          console.log('Using standard iframe fullscreen');
+          await iframe.requestFullscreen();
+          return;
+        }
+      } catch (error) {
+        console.error('iPhone iframe fullscreen failed:', error);
+      }
+    }
+    
+    // Prova fullscreen del container per altri dispositivi
+    if (container) {
+      try {
         if (container.requestFullscreen) {
           await container.requestFullscreen();
         } else if ((container as any).webkitRequestFullscreen) {
           await (container as any).webkitRequestFullscreen();
-        } else if ((container as any).webkitEnterFullscreen) {
-          await (container as any).webkitEnterFullscreen();
         }
+      } catch (error) {
+        console.error('Container fullscreen failed:', error);
       }
+    }
 
-      // Force landscape orientation on mobile devices
-      if (isMobile && (screen as any).orientation && (screen as any).orientation.lock) {
-        try {
-          await (screen as any).orientation.lock('landscape-primary');
-        } catch (error) {
-          console.log("Orientation lock not supported:", error);
-        }
+    // Orientiamento landscape per mobile
+    if (isMobile && (screen as any).orientation?.lock) {
+      try {
+        await (screen as any).orientation.lock('landscape-primary');
+        console.log('Landscape orientation locked');
+      } catch (error) {
+        console.log("Orientation lock not supported:", error);
       }
-    } catch (error) {
-      console.error("Fullscreen error:", error);
     }
   }, [isMobile, isIOS]);
 
-  // Enhanced fullscreen change listener
+  // Gestione eventi fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const isCurrentlyFullscreen = !!(document.fullscreenElement || 
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement || 
         (document as any).webkitFullscreenElement || 
-        (document as any).webkitCurrentFullScreenElement);
+        (document as any).webkitCurrentFullScreenElement
+      );
+      
+      console.log('Fullscreen change detected:', isCurrentlyFullscreen);
       setIsFullscreen(isCurrentlyFullscreen);
       setShowControls(true);
       
-      // Unlock orientation when exiting fullscreen
-      if (!isCurrentlyFullscreen && isMobile && (screen as any).orientation && (screen as any).orientation.unlock) {
+      // Sblocca orientamento quando si esce dal fullscreen
+      if (!isCurrentlyFullscreen && isMobile && (screen as any).orientation?.unlock) {
         try {
           (screen as any).orientation.unlock();
+          console.log('Orientation unlocked');
         } catch (error) {
           console.log("Orientation unlock not supported:", error);
         }
       }
     };
 
-    // Listen to all fullscreen change events
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitbeginfullscreen', handleFullscreenChange);
-    document.addEventListener('webkitendfullscreen', handleFullscreenChange);
+    const events = [
+      'fullscreenchange',
+      'webkitfullscreenchange', 
+      'webkitbeginfullscreen',
+      'webkitendfullscreen'
+    ];
+
+    events.forEach(event => {
+      document.addEventListener(event, handleFullscreenChange);
+    });
     
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitbeginfullscreen', handleFullscreenChange);
-      document.removeEventListener('webkitendfullscreen', handleFullscreenChange);
+      events.forEach(event => {
+        document.removeEventListener(event, handleFullscreenChange);
+      });
     };
   }, [isMobile]);
 
+  // Carica script Vimeo
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://player.vimeo.com/api/player.js';
@@ -156,19 +179,21 @@ const VideoPlayer = () => {
     };
   }, []);
 
+  // Inizializza player Vimeo
   useEffect(() => {
     if (!hasStarted || playerInitializedRef.current) return;
     
     const timer = setTimeout(() => {
-      const iframe = document.getElementById('vimeo-player');
+      const iframe = iframeRef.current;
       if (iframe && window.Vimeo) {
         try {
-          // @ts-ignore
+          console.log('Initializing Vimeo player...');
           playerRef.current = new window.Vimeo.Player(iframe);
           playerInitializedRef.current = true;
           
           playerRef.current.getDuration().then((duration: number) => {
             setVideoDuration(Math.floor(duration));
+            console.log('Video duration:', duration);
           }).catch((error: any) => {
             console.log("Error getting duration:", error);
           });
@@ -178,6 +203,7 @@ const VideoPlayer = () => {
           });
           
           const handlePlay = () => {
+            console.log('Video playing');
             setIsPlaying(true);
             setShowControls(true);
             if (!isMobile) {
@@ -186,12 +212,14 @@ const VideoPlayer = () => {
           };
           
           const handlePause = () => {
+            console.log('Video paused');
             setIsPlaying(false);
             setShowControls(true);
             clearControlsTimer();
           };
           
           const handleEnd = () => {
+            console.log('Video ended');
             setVideoEnded(true);
             setShowButton(true);
             setIsPlaying(false);
@@ -210,6 +238,14 @@ const VideoPlayer = () => {
           playerRef.current.on('ended', handleEnd);
           playerRef.current.on('timeupdate', handleTimeUpdate);
           playerRef.current.on('fullscreenchange', handleFullscreenChange);
+          
+          // Per iPhone, prova ad avviare automaticamente
+          if (isIOS) {
+            console.log('Auto-starting video for iOS');
+            playerRef.current.play().catch((error: any) => {
+              console.log("iOS auto-play prevented:", error);
+            });
+          }
         } catch (error) {
           console.log("Error initializing Vimeo player:", error);
         }
@@ -217,22 +253,15 @@ const VideoPlayer = () => {
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [hasStarted, volume, isMobile]);
+  }, [hasStarted, volume, isMobile, isIOS]);
 
-  useEffect(() => {
-    if (!playerRef.current || !playerInitializedRef.current) return;
-    
-    playerRef.current.setVolume(volume).catch((error: any) => {
-      console.log("Error setting volume:", error);
-    });
-  }, [volume]);
+  // ... keep existing code (startControlsTimer, clearControlsTimer, touch controls)
 
   const startControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
     }
     
-    // Nascondi controlli dopo 3 secondi
     controlsTimeout.current = setTimeout(() => {
       if (isPlaying && !isFullscreen) {
         setShowControls(false);
@@ -247,7 +276,6 @@ const VideoPlayer = () => {
     }
   }, []);
 
-  // Improved mobile touch controls
   useEffect(() => {
     const handleMouseMove = () => {
       if (hasStarted) {
@@ -260,7 +288,6 @@ const VideoPlayer = () => {
 
     const handleTouch = (e: TouchEvent) => {
       if (hasStarted) {
-        e.preventDefault();
         setShowControls(true);
         if (isPlaying) {
           startControlsTimer();
@@ -269,8 +296,8 @@ const VideoPlayer = () => {
     };
     
     if (isMobile) {
-      window.addEventListener('touchstart', handleTouch, { passive: false });
-      window.addEventListener('touchend', handleTouch, { passive: false });
+      window.addEventListener('touchstart', handleTouch, { passive: true });
+      window.addEventListener('touchend', handleTouch, { passive: true });
     } else {
       window.addEventListener('mousemove', handleMouseMove);
     }
@@ -286,6 +313,7 @@ const VideoPlayer = () => {
   }, [isPlaying, hasStarted, startControlsTimer, isMobile]);
 
   const handlePlayClick = () => {
+    console.log('Play button clicked');
     setHasStarted(true);
     setIsPlaying(true);
     setVideoEnded(false);
@@ -323,14 +351,13 @@ const VideoPlayer = () => {
   };
 
   const toggleFullscreen = async () => {
+    console.log('Fullscreen toggle clicked');
     if (isFullscreen) {
       try {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
           await (document as any).webkitExitFullscreen();
-        } else if ((document as any).webkitCancelFullScreen) {
-          await (document as any).webkitCancelFullScreen();
         }
       } catch (error) {
         console.error("Exit fullscreen error:", error);
@@ -343,11 +370,40 @@ const VideoPlayer = () => {
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
+    if (playerRef.current) {
+      playerRef.current.setVolume(newVolume).catch((error: any) => {
+        console.log("Error setting volume:", error);
+      });
+    }
   };
 
   const calculateProgress = () => {
     if (videoDuration === 0) return 0;
     return (currentTime / videoDuration) * 100;
+  };
+
+  // URL del video con parametri specifici per iPhone
+  const getVideoUrl = () => {
+    const baseUrl = 'https://player.vimeo.com/video/1089786027';
+    const params = new URLSearchParams({
+      autoplay: hasStarted ? '1' : '0',
+      background: '0',
+      loop: '0',
+      autopause: '0',
+      controls: '0',
+      title: '0',
+      byline: '0',
+      portrait: '0',
+      badge: '0',
+      playsinline: '1'
+    });
+    
+    if (isIOS) {
+      params.set('muted', '0');
+      params.set('quality', 'auto');
+    }
+    
+    return `${baseUrl}?${params.toString()}`;
   };
 
   return (
@@ -391,8 +447,8 @@ const VideoPlayer = () => {
                 <div className="absolute inset-0">
                   <div style={{ padding: isFullscreen ? '0' : '56.25% 0 0 0', position: 'relative', height: isFullscreen ? '100%' : 'auto' }}>
                     <iframe
-                      id="vimeo-player"
-                      src={`https://player.vimeo.com/video/1089786027?autoplay=1&background=0&loop=0&autopause=0&controls=0&title=0&byline=0&portrait=0&badge=0&playsinline=1`}
+                      ref={iframeRef}
+                      src={getVideoUrl()}
                       frameBorder="0"
                       allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
                       style={{ 
@@ -407,13 +463,15 @@ const VideoPlayer = () => {
                       }}
                       title="Video Esclusivo"
                       allowFullScreen
-                      playsInline
-                      webkitAllowFullScreen
+                      {...(isIOS ? {
+                        'webkit-playsinline': 'true',
+                        'playsinline': 'true'
+                      } : {})}
                     ></iframe>
                   </div>
                 </div>
                 
-                {/* Overlay solo per i controlli del video - limitato al video container */}
+                {/* Overlay controlli video */}
                 <div 
                   className="absolute inset-0 z-10"
                   onContextMenu={(e) => e.preventDefault()}
@@ -431,6 +489,7 @@ const VideoPlayer = () => {
                   }}
                 />
                 
+                {/* Barra progresso */}
                 <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
                   <div 
                     className="h-full bg-yellow-500 transition-all duration-200"
@@ -438,7 +497,7 @@ const VideoPlayer = () => {
                   ></div>
                 </div>
                 
-                {/* Controlli per mobile in fullscreen - solo play/pause, volume e exit */}
+                {/* Controlli */}
                 {isFullscreen && isMobile ? (
                   <div className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                     <div className="flex items-center space-x-4">
@@ -493,7 +552,6 @@ const VideoPlayer = () => {
                     </button>
                   </div>
                 ) : (
-                  /* Controlli normali per desktop e mobile non-fullscreen */
                   <div 
                     className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
                       showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -514,7 +572,6 @@ const VideoPlayer = () => {
                         )}
                       </button>
                       
-                      {/* Volume solo per desktop o se non in fullscreen su mobile */}
                       {(!isMobile || !isFullscreen) && (
                         <>
                           <button 
