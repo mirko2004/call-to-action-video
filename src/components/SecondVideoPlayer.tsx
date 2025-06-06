@@ -33,58 +33,36 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   console.log('SecondVideo Device detected:', { isIOS, isAndroid, isMobile, userAgent });
 
-  // Funzione fullscreen migliorata per iPhone
-  const enterFullscreenWithLandscape = useCallback(async () => {
-    console.log('SecondVideo: Attempting fullscreen with landscape...');
+  // Funzione fullscreen specifica per iPhone
+  const enterIPhoneFullscreen = useCallback(async () => {
+    console.log('SecondVideo: Attempting iPhone fullscreen...');
     
     const iframe = iframeRef.current;
-    const container = containerRef.current;
     
     if (isIOS && iframe) {
       try {
-        // Prova prima webkitEnterFullscreen sull'iframe
+        // Prova webkit fullscreen specifico per video su iOS
         if ((iframe as any).webkitEnterFullscreen) {
           console.log('SecondVideo: Using webkit iframe fullscreen for iOS');
-          await (iframe as any).webkitEnterFullscreen();
-          return;
+          (iframe as any).webkitEnterFullscreen();
+          return true;
         }
         
-        // Fallback per requestFullscreen
+        // Prova fullscreen standard
         if (iframe.requestFullscreen) {
           console.log('SecondVideo: Using standard iframe fullscreen');
           await iframe.requestFullscreen();
-          return;
+          return true;
         }
       } catch (error) {
-        console.error('SecondVideo: iPhone iframe fullscreen failed:', error);
+        console.error('SecondVideo: iPhone fullscreen failed:', error);
       }
     }
     
-    // Prova fullscreen del container per altri dispositivi
-    if (container) {
-      try {
-        if (container.requestFullscreen) {
-          await container.requestFullscreen();
-        } else if ((container as any).webkitRequestFullscreen) {
-          await (container as any).webkitRequestFullscreen();
-        }
-      } catch (error) {
-        console.error('SecondVideo: Container fullscreen failed:', error);
-      }
-    }
+    return false;
+  }, [isIOS]);
 
-    // Orientiamento landscape per mobile
-    if (isMobile && (screen as any).orientation?.lock) {
-      try {
-        await (screen as any).orientation.lock('landscape-primary');
-        console.log('SecondVideo: Landscape orientation locked');
-      } catch (error) {
-        console.log("SecondVideo: Orientation lock not supported:", error);
-      }
-    }
-  }, [isMobile, isIOS]);
-
-  // Costruzione URL Vimeo
+  // Costruzione URL Vimeo ottimizzato per iPhone
   useEffect(() => {
     const getVideoUrl = () => {
       const baseUrl = 'https://player.vimeo.com/video/1090015233';
@@ -96,7 +74,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         autopause: '0',
         player_id: '0',
         app_id: '58479',
-        controls: isIOS ? '1' : '0', // Controls visibili su iOS
+        controls: isIOS ? '1' : '0', // Controlli nativi su iOS
         autoplay: '0',
         preload: 'auto',
         playsinline: '1'
@@ -105,6 +83,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       if (isIOS) {
         params.set('muted', '0');
         params.set('quality', 'auto');
+        params.set('background', '0');
       }
       
       return `${baseUrl}?${params.toString()}`;
@@ -177,16 +156,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       
       console.log('SecondVideo: Fullscreen change detected:', isCurrentlyFullscreen);
       setIsFullscreen(isCurrentlyFullscreen);
-      
-      // Unlock orientation when exiting fullscreen
-      if (!isCurrentlyFullscreen && isMobile && (screen as any).orientation?.unlock) {
-        try {
-          (screen as any).orientation.unlock();
-          console.log('SecondVideo: Orientation unlocked');
-        } catch (error) {
-          console.log("SecondVideo: Orientation unlock not supported:", error);
-        }
-      }
     };
 
     const events = [
@@ -205,7 +174,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         document.removeEventListener(event, handleFullscreenChange);
       });
     };
-  }, [isMobile]);
+  }, []);
 
   // Timer per nascondere i controlli
   const startControlsTimer = useCallback(() => {
@@ -227,19 +196,19 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   }, []);
 
-  // Controlli touch migliorati per mobile
+  // Controlli touch per mobile
   useEffect(() => {
-    const handleMouseMove = () => {
+    const handleTouch = () => {
       if (hasStarted) {
         setShowControls(true);
-        if (isPlaying && !isMobile) {
+        if (isPlaying) {
           startControlsTimer();
         }
       }
     };
 
-    const handleTouch = (e: TouchEvent) => {
-      if (hasStarted) {
+    const handleMouseMove = () => {
+      if (hasStarted && !isMobile) {
         setShowControls(true);
         if (isPlaying) {
           startControlsTimer();
@@ -266,11 +235,13 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
 
   const handlePlayClick = async () => {
     console.log('SecondVideo: Play button clicked');
+    setHasStarted(true);
+    setIsPlaying(true);
+    
     if (player) {
       try {
         await player.play();
-        setIsPlaying(true);
-        setHasStarted(true);
+        console.log('SecondVideo: iPhone play successful');
       } catch (error) {
         console.log("SecondVideo: Play was prevented:", error);
       }
@@ -323,7 +294,24 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         console.error("SecondVideo: Exit fullscreen error:", error);
       }
     } else {
-      await enterFullscreenWithLandscape();
+      // Su iPhone usa la funzione specifica
+      if (isIOS) {
+        await enterIPhoneFullscreen();
+      } else {
+        // Per altri dispositivi usa il metodo standard
+        const container = containerRef.current;
+        if (container) {
+          try {
+            if (container.requestFullscreen) {
+              await container.requestFullscreen();
+            } else if ((container as any).webkitRequestFullscreen) {
+              await (container as any).webkitRequestFullscreen();
+            }
+          } catch (error) {
+            console.error("SecondVideo: Fullscreen error:", error);
+          }
+        }
+      }
     }
   };
 
@@ -369,10 +357,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
               title="2 secondo video sito"
               allowFullScreen
-              {...(isIOS ? {
-                'webkit-playsinline': true,
-                'playsinline': true
-              } : {})}
+              playsInline
+              webkitAllowFullScreen
             />
           )}
           
@@ -384,40 +370,24 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               </div>
             </div>
           )}
-
-          {/* Overlay per controlli touch */}
-          {hasStarted && (
-            <div 
-              className="absolute inset-0 z-10"
-              onContextMenu={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowControls(true);
-                if (isPlaying) {
-                  startControlsTimer();
-                }
-              }}
-              onTouchStart={() => {
-                setShowControls(true);
-                if (isPlaying) {
-                  startControlsTimer();
-                }
-              }}
-            />
-          )}
           
-          {/* Barra di progresso */}
-          {hasStarted && (
+          {/* Barra di progresso - nascosta su iOS */}
+          {hasStarted && !isIOS && (
             <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
               <div 
                 className="h-full bg-yellow-500 transition-all duration-200"
                 style={{ width: `${calculateProgress()}%` }}
-              ></div>
+              />
             </div>
           )}
           
-          {/* Controlli per mobile in fullscreen */}
-          {hasStarted && isFullscreen && isMobile ? (
-            <div className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          {/* Controlli personalizzati - nascosti su iOS perché usiamo i controlli nativi */}
+          {hasStarted && !isIOS && (
+            <div 
+              className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
+                showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
               <div className="flex items-center space-x-4">
                 <button 
                   onClick={(e) => {
@@ -455,7 +425,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-16 accent-yellow-500"
+                  className="w-24 accent-yellow-500"
                 />
               </div>
 
@@ -466,79 +436,13 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
                 }}
                 className="text-white hover:text-yellow-400 transition-colors p-2"
               >
-                <Minimize className="w-5 h-5" />
+                {isFullscreen ? (
+                  <Minimize className="w-5 h-5" />
+                ) : (
+                  <Maximize className="w-5 h-5" />
+                )}
               </button>
             </div>
-          ) : (
-            /* Controlli normali */
-            hasStarted && (
-              <div 
-                className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
-                  showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
-              >
-                <div className="flex items-center space-x-4">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePlayPause();
-                    }}
-                    className="text-white hover:text-yellow-400 transition-colors p-2"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-6 h-6" />
-                    ) : (
-                      <Play className="w-6 h-6" fill="currentColor" />
-                    )}
-                  </button>
-                  
-                  {(!isMobile || !isFullscreen) && (
-                    <>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleMute();
-                        }}
-                        className="text-white hover:text-yellow-400 transition-colors p-2"
-                      >
-                        {isMuted ? (
-                          <VolumeX className="w-5 h-5" />
-                        ) : (
-                          <Volume2 className="w-5 h-5" />
-                        )}
-                      </button>
-                      
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={isMuted ? 0 : volume}
-                        onChange={handleVolumeChange}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-24 accent-yellow-500"
-                      />
-                    </>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFullscreen();
-                    }}
-                    className="text-white hover:text-yellow-400 transition-colors p-2"
-                  >
-                    {isFullscreen ? (
-                      <Minimize className="w-5 h-5" />
-                    ) : (
-                      <Maximize className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            )
           )}
         </div>
 
