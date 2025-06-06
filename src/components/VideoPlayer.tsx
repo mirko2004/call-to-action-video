@@ -72,7 +72,7 @@ const VideoPlayer = () => {
 
   console.log('VideoPlayer Device detected:', { isIOS, isAndroid, isMobile, userAgent });
 
-  // URL specifico per iPhone con tutti i parametri ottimizzati
+  // URL specifico per iPhone senza controlli nativi
   const getVideoUrl = () => {
     const baseUrl = 'https://player.vimeo.com/video/1089786027';
     const params = new URLSearchParams({
@@ -83,7 +83,7 @@ const VideoPlayer = () => {
       autopause: '0',
       player_id: '0',
       app_id: '58479',
-      controls: isIOS ? '1' : '0', // Mostra controlli nativi su iOS
+      controls: '0', // Rimuoviamo i controlli nativi anche su iOS
       autoplay: hasStarted ? '1' : '0',
       preload: 'auto',
       playsinline: '1'
@@ -462,78 +462,74 @@ const VideoPlayer = () => {
                 </div>
                 
                 {/* Barra progresso */}
-                {!isIOS && (
-                  <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
-                    <div 
-                      className="h-full bg-yellow-500 transition-all duration-200"
-                      style={{ width: `${calculateProgress()}%` }}
-                    />
-                  </div>
-                )}
-                
-                {/* Controlli personalizzati solo se non è iOS */}
-                {!isIOS && (
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
                   <div 
-                    className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
-                      showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePlayPause();
-                        }}
-                        className="text-white hover:text-yellow-400 transition-colors"
-                      >
-                        {isPlaying ? (
-                          <Pause className="w-6 h-6" />
-                        ) : (
-                          <Play className="w-6 h-6" fill="currentColor" />
-                        )}
-                      </button>
-                      
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleMute();
-                        }}
-                        className="text-white hover:text-yellow-400 transition-colors"
-                      >
-                        {isMuted ? (
-                          <VolumeX className="w-5 h-5" />
-                        ) : (
-                          <Volume2 className="w-5 h-5" />
-                        )}
-                      </button>
-                      
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={isMuted ? 0 : volume}
-                        onChange={handleVolumeChange}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-24 accent-yellow-500"
-                      />
-                    </div>
-
+                    className="h-full bg-yellow-500 transition-all duration-200"
+                    style={{ width: `${calculateProgress()}%` }}
+                  />
+                </div>
+                
+                {/* Controlli personalizzati per tutti i dispositivi */}
+                <div 
+                  className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
+                    showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  <div className="flex items-center space-x-4">
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleFullscreen();
+                        togglePlayPause();
                       }}
-                      className="text-white hover:text-yellow-400 transition-colors p-2"
+                      className="text-white hover:text-yellow-400 transition-colors"
                     >
-                      {isFullscreen ? (
-                        <Minimize className="w-5 h-5" />
+                      {isPlaying ? (
+                        <Pause className="w-6 h-6" />
                       ) : (
-                        <Maximize className="w-5 h-5" />
+                        <Play className="w-6 h-6" fill="currentColor" />
                       )}
                     </button>
+                    
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMute();
+                      }}
+                      className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                      {isMuted ? (
+                        <VolumeX className="w-5 h-5" />
+                      ) : (
+                        <Volume2 className="w-5 h-5" />
+                      )}
+                    </button>
+                    
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-24 accent-yellow-500"
+                    />
                   </div>
-                )}
+
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFullscreen();
+                    }}
+                    className="text-white hover:text-yellow-400 transition-colors p-2"
+                  >
+                    {isFullscreen ? (
+                      <Minimize className="w-5 h-5" />
+                    ) : (
+                      <Maximize className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </div>

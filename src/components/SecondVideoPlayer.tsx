@@ -61,7 +61,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     return false;
   }, [isIOS]);
 
-  // Costruzione URL Vimeo ottimizzato per iPhone
+  // Costruzione URL Vimeo senza controlli nativi anche per iPhone
   useEffect(() => {
     const getVideoUrl = () => {
       const baseUrl = 'https://player.vimeo.com/video/1090015233';
@@ -73,7 +73,7 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
         autopause: '0',
         player_id: '0',
         app_id: '58479',
-        controls: isIOS ? '1' : '0', // Controlli nativi su iOS
+        controls: '0', // Rimuoviamo i controlli nativi anche su iOS
         autoplay: '0',
         preload: 'auto',
         playsinline: '1'
@@ -368,8 +368,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
           
-          {/* Barra di progresso - nascosta su iOS */}
-          {hasStarted && !isIOS && (
+          {/* Barra di progresso per tutti i dispositivi */}
+          {hasStarted && (
             <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 z-20">
               <div 
                 className="h-full bg-yellow-500 transition-all duration-200"
@@ -378,8 +378,8 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
             </div>
           )}
           
-          {/* Controlli personalizzati - nascosti su iOS perché usiamo i controlli nativi */}
-          {hasStarted && !isIOS && (
+          {/* Controlli personalizzati per tutti i dispositivi */}
+          {hasStarted && (
             <div 
               className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20 flex items-center justify-between transition-opacity duration-300 ${
                 showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
