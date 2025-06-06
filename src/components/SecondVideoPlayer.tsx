@@ -1,4 +1,3 @@
-
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
@@ -357,8 +356,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
               allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
               title="2 secondo video sito"
               allowFullScreen
-              playsInline
-              webkitAllowFullScreen
             />
           )}
           

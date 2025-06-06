@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -459,8 +458,6 @@ const VideoPlayer = () => {
                     allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
                     title="Video Esclusivo"
                     allowFullScreen
-                    playsInline
-                    webkitAllowFullScreen
                   />
                 </div>
                 
