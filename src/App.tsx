@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import Index from "./pages/Index";
 import SecondVideo from "./pages/SecondVideo";
 import NotFound from "./pages/NotFound";
-import InstagramLandingPage from "@/components/InstagramLandingPage";
+import InstagramLandingPage from "./components/InstagramLandingPage";
 
 const queryClient = new QueryClient();
 
@@ -48,3 +48,4 @@ const App = () => {
 };
 
 export default App;
+
