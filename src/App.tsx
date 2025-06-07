@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import SecondVideo from "./pages/SecondVideo";
 import NotFound from "./pages/NotFound";
-import InstagramLandingPage from "./components/InstagramLandingPage";
+import InstagramLandingPage from "../src/components/InstagramLandingPage";
 
 const queryClient = new QueryClient();
 
