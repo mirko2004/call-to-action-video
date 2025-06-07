@@ -55,5 +55,4 @@ export default function InstagramLandingPage() {
       </div>
     </div>
   );
-  );
 }
