@@ -19,4 +19,16 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      external: [
+        "@vitejs/plugin-react-swc",
+        "react",
+        "react-dom",
+        "react-router-dom",
+        "@tanstack/react-query",
+        "lucide-react"
+      ]
+    }
+  }
 }));
