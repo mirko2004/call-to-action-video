@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import VideoEndPopup from "./VideoEndPopup";
-
 
 const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
   const navigate = useNavigate();
@@ -13,12 +11,8 @@ const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
     onContinue();
   };
 
-  const handleVideoClick = () => {
-    console.log('VideoEndPopup: Video click detected');
-  };
-
   return (
-    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10" style={{ pointerEvents: true }} onClick={handleVideoClick}>
+    <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center animate-scale-in">
         <h2 className="text-2xl font-bold mb-4 text-yellow-400 animate-fade-in" style={{ animationDelay: '0.2s' }}>Perfetto! 🎯</h2>
         <p className="mb-6 text-gray-300 animate-fade-in" style={{ animationDelay: '0.4s' }}>
@@ -60,8 +54,7 @@ const VideoPlayer = () => {
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [hasControlsEverAppeared, setHasControlsEverAppeared] = useState(false);
-
+  
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
   const playerInitializedRef = useRef(false);
@@ -69,91 +62,7 @@ const VideoPlayer = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const navigate = useNavigate();
-
-  // Timer per nascondere i controlli
-  const startControlsTimer = useCallback(() => {
-    if (controlsTimeout.current) {
-      clearTimeout(controlsTimeout.current);
-    }
-    
-    controlsTimeout.current = setTimeout(() => {
-      if (isPlaying && !isFullscreen && hasControlsEverAppeared) {
-        setShowControls(false);
-      }
-    }, 3000);
-  }, [isPlaying, isFullscreen, hasControlsEverAppeared]);
-
-  const clearControlsTimer = useCallback(() => {
-    if (controlsTimeout.current) {
-      clearTimeout(controlsTimeout.current);
-      controlsTimeout.current = null;
-    }
-  }, []);
-
-  // Traccia se i controlli sono mai stati visibili
-  useEffect(() => {
-    if (showControls) {
-      setHasControlsEverAppeared(true);
-    }
-  }, [showControls]);
-
-  // Gestione click sul video
-  const handleVideoClick = useCallback(() => {
-    if (hasControlsEverAppeared) {
-      setShowControls(true);
-      startControlsTimer();
-    }
-  }, [hasControlsEverAppeared, startControlsTimer]);
-
-  // Controlli touch per mobile
-  useEffect(() => {
-    const handleTouch = () => {
-      if (hasStarted && hasControlsEverAppeared) {
-        setShowControls(true);
-        startControlsTimer();
-      }
-    };
-
-    const handleTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      handleTouch();
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 0 && hasControlsEverAppeared) {
-        handleTouch();
-      }
-    };
-
-    containerRef.current?.addEventListener('touchstart', handleTouchStart);
-    containerRef.current?.addEventListener('mousedown', handleMouseDown);
-
-    return () => {
-      containerRef.current?.removeEventListener('touchstart', handleTouchStart);
-      containerRef.current?.removeEventListener('mousedown', handleMouseDown);
-    };
-  }, [hasStarted, startControlsTimer, hasControlsEverAppeared]);
-
-  // Gestione eventi mouse per desktop
-  useEffect(() => {
-    const handleMouseMove = () => {
-      if (hasStarted && hasControlsEverAppeared) {
-        setShowControls(true);
-        startControlsTimer();
-      }
-    };
-
-    if (!isMobile) {
-      window.addEventListener('mousemove', handleMouseMove);
-    }
-
-    return () => {
-      if (!isMobile) {
-        window.removeEventListener('mousemove', handleMouseMove);
-      }
-    };
-  }, [hasStarted, startControlsTimer, hasControlsEverAppeared, isMobile]);
-
+  
   // Dettagli dispositivo
   const userAgent = navigator.userAgent;
   const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
@@ -336,6 +245,62 @@ const VideoPlayer = () => {
     
     return () => clearTimeout(timer);
   }, [hasStarted, volume, isMobile, isIOS]);
+
+  const startControlsTimer = useCallback(() => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+    }
+    
+    controlsTimeout.current = setTimeout(() => {
+      if (isPlaying && !isFullscreen) {
+        setShowControls(false);
+      }
+    }, 3000);
+  }, [isPlaying, isFullscreen]);
+
+  const clearControlsTimer = useCallback(() => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+      controlsTimeout.current = null;
+    }
+  }, []);
+
+  // Touch controls per mobile
+  useEffect(() => {
+    const handleTouch = () => {
+      if (hasStarted) {
+        setShowControls(true);
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      }
+    };
+
+    const handleMouseMove = () => {
+      if (hasStarted && !isMobile) {
+        setShowControls(true);
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      }
+    };
+    
+    if (isMobile) {
+      window.addEventListener('touchstart', handleTouch, { passive: true });
+      window.addEventListener('touchend', handleTouch, { passive: true });
+    } else {
+      window.addEventListener('mousemove', handleMouseMove);
+    }
+    
+    return () => {
+      if (isMobile) {
+        window.removeEventListener('touchstart', handleTouch);
+        window.removeEventListener('touchend', handleTouch);
+      } else {
+        window.removeEventListener('mousemove', handleMouseMove);
+      }
+    };
+  }, [isPlaying, hasStarted, startControlsTimer, isMobile]);
 
   const handlePlayClick = async () => {
     console.log('VideoPlayer: Play button clicked');
@@ -611,8 +576,5 @@ const VideoPlayer = () => {
     </div>
   );
 };
-
-export default VideoPlayer;
-
 
 export default VideoPlayer;

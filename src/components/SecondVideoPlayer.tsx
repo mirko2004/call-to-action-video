@@ -1,5 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
-import { NodeJS } from 'node';
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
 
@@ -18,7 +17,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [hasControlsEverAppeared, setHasControlsEverAppeared] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
   const [player, setPlayer] = useState<any>(null);
   const [vimeoUrl, setVimeoUrl] = useState("");
@@ -184,11 +182,11 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
     
     controlsTimeout.current = setTimeout(() => {
-      if (isPlaying && !isFullscreen && hasControlsEverAppeared) {
+      if (isPlaying && !isFullscreen) {
         setShowControls(false);
       }
     }, 3000);
-  }, [isPlaying, isFullscreen, hasControlsEverAppeared]);
+  }, [isPlaying, isFullscreen]);
 
   const clearControlsTimer = useCallback(() => {
     if (controlsTimeout.current) {
@@ -197,57 +195,43 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   }, []);
 
-  // Traccia se i controlli sono mai stati visibili
-  useEffect(() => {
-    if (showControls) {
-      setHasControlsEverAppeared(true);
-    }
-  }, [showControls]);
-
   // Controlli touch per mobile
   useEffect(() => {
-    const handleTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      if (hasStarted && hasControlsEverAppeared) {
+    const handleTouch = () => {
+      if (hasStarted) {
         setShowControls(true);
-        startControlsTimer();
-      }
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 0 && hasControlsEverAppeared) {
-        if (hasStarted) {
-          setShowControls(true);
+        if (isPlaying) {
           startControlsTimer();
         }
       }
     };
 
-    containerRef.current?.addEventListener('touchstart', handleTouchStart);
-    containerRef.current?.addEventListener('mousedown', handleMouseDown);
-
-    return () => {
-      containerRef.current?.removeEventListener('touchstart', handleTouchStart);
-      containerRef.current?.removeEventListener('mousedown', handleMouseDown);
+    const handleMouseMove = () => {
+      if (hasStarted && !isMobile) {
+        setShowControls(true);
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      }
     };
-  }, [hasStarted, startControlsTimer, hasControlsEverAppeared]);
-
-  // Gestione click sul video
-  const handleVideoClick = useCallback(() => {
-    if (hasControlsEverAppeared) {
-      setShowControls(true);
-      startControlsTimer();
+    
+    if (isMobile) {
+      window.addEventListener('touchstart', handleTouch, { passive: true });
+      window.addEventListener('touchend', handleTouch, { passive: true });
+    } else {
+      window.addEventListener('mousemove', handleMouseMove);
     }
-  }, [hasControlsEverAppeared, startControlsTimer]);
+    
+    return () => {
+      if (isMobile) {
+        window.removeEventListener('touchstart', handleTouch);
+        window.removeEventListener('touchend', handleTouch);
+      } else {
+        window.removeEventListener('mousemove', handleMouseMove);
+      }
+    };
+  }, [isPlaying, hasStarted, startControlsTimer, isMobile]);
 
-  const calculateProgress = () => {
-    if (videoDuration === 0) return 0;
-    return (currentTime / videoDuration) * 100;
-  };
-
-  const isMuted = volume === 0;
-
-  // Funzioni di controllo del video
   const handlePlayClick = async () => {
     console.log('SecondVideo: Play button clicked');
     setHasStarted(true);
@@ -256,8 +240,9 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     if (player) {
       try {
         await player.play();
+        console.log('SecondVideo: iPhone play successful');
       } catch (error) {
-        console.log("SecondVideo: Play error:", error);
+        console.log("SecondVideo: Play was prevented:", error);
       }
     }
   };
@@ -295,18 +280,6 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
     }
   };
 
-  const handleVolumeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-    if (player) {
-      try {
-        await player.setVolume(newVolume);
-      } catch (error) {
-        console.log("SecondVideo: Volume change error:", error);
-      }
-    }
-  };
-
   const toggleFullscreen = async () => {
     console.log('SecondVideo: Fullscreen toggle clicked');
     if (isFullscreen) {
@@ -340,6 +313,25 @@ const SecondVideoPlayer = ({ onVideoEnd }: SecondVideoPlayerProps) => {
       }
     }
   };
+
+  const handleVolumeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (player) {
+      try {
+        await player.setVolume(newVolume);
+      } catch (error) {
+        console.log("SecondVideo: Volume change error:", error);
+      }
+    }
+  };
+
+  const calculateProgress = () => {
+    if (videoDuration === 0) return 0;
+    return (currentTime / videoDuration) * 100;
+  };
+
+  const isMuted = volume === 0;
 
   return (
     <>
