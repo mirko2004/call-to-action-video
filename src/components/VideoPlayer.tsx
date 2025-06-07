@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import VideoEndPopup from "./VideoEndPopup";
+
 
 const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
   const navigate = useNavigate();
