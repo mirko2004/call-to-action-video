@@ -11,8 +11,12 @@ const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
     onContinue();
   };
 
+  const handleVideoClick = () => {
+    console.log('VideoEndPopup: Video click detected');
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-fade-in">
+    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10" style={{ pointerEvents: true }} onClick={handleVideoClick}>
       <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center animate-scale-in">
         <h2 className="text-2xl font-bold mb-4 text-yellow-400 animate-fade-in" style={{ animationDelay: '0.2s' }}>Perfetto! 🎯</h2>
         <p className="mb-6 text-gray-300 animate-fade-in" style={{ animationDelay: '0.4s' }}>
@@ -54,6 +58,7 @@ const VideoPlayer = () => {
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hasControlsEverAppeared, setHasControlsEverAppeared] = useState(false);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
@@ -264,6 +269,33 @@ const VideoPlayer = () => {
       controlsTimeout.current = null;
     }
   }, []);
+
+  const handleMouseMove = useCallback(() => {
+    if (controlsTimeout.current) {
+      clearTimeout(controlsTimeout.current);
+      controlsTimeout.current = null;
+    }
+    if (hasControlsEverAppeared) {
+      setShowControls(true);
+      controlsTimeout.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
+  }, [hasControlsEverAppeared]);
+
+  // Gestisci il click sul video
+  const handleVideoClick = useCallback(() => {
+    if (hasControlsEverAppeared) {
+      setShowControls(true);
+    }
+  }, [hasControlsEverAppeared]);
+
+  // Traccia se i controlli sono mai stati visibili
+  useEffect(() => {
+    if (showControls) {
+      setHasControlsEverAppeared(true);
+    }
+  }, [showControls]);
 
   // Touch controls per mobile
   useEffect(() => {
