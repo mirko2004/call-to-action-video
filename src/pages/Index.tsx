@@ -1,9 +1,26 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import VideoPlayer from "@/components/VideoPlayer";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [videoEnded, setVideoEnded] = useState(false);
+
+  useEffect(() => {
+    // Controlla se l'utente è arrivato da Instagram o TikTok
+    const referrer = document.referrer.toLowerCase();
+    const isInstagram = referrer.includes('instagram.com') || referrer.includes('i.instagram.com');
+    const isTikTok = referrer.includes('tiktok.com');
+    
+    // Controlla se l'utente ha già visto la pagina di bridge
+    const hasSeenBridge = localStorage.getItem('hasSeenBridge');
+    
+    // Reindirizza alla pagina di bridge se necessario
+    if ((isInstagram || isTikTok) && !hasSeenBridge) {
+      navigate('/instagram-bridge');
+    }
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-black text-white">

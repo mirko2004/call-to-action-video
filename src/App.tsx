@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import SecondVideo from "./pages/SecondVideo";
 import NotFound from "./pages/NotFound";
+import InstagramBridge from "./pages/InstagramBridge";
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/instagram-bridge" element={<InstagramBridge />} />
           <Route path="/" element={<Index />} />
           <Route path="/secondo-video" element={<SecondVideo />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

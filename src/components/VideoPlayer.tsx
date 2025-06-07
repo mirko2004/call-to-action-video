@@ -53,6 +53,7 @@ const VideoPlayer = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [showControls, setShowControls] = useState(true);
+  const [controlsHidden, setControlsHidden] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -83,7 +84,7 @@ const VideoPlayer = () => {
       autopause: '0',
       player_id: '0',
       app_id: '58479',
-      controls: '0', // Rimuoviamo i controlli nativi anche su iOS
+      controls: controlsHidden ? '0' : '1',
       autoplay: hasStarted ? '1' : '0',
       preload: 'auto',
       playsinline: '1'
@@ -267,6 +268,18 @@ const VideoPlayer = () => {
 
   // Touch controls per mobile
   useEffect(() => {
+    const handlePlayPause = () => {
+      if (!hasStarted) {
+        setHasStarted(true);
+      }
+      setIsPlaying(!isPlaying);
+      
+      // Hide controls permanently after first use
+      if (!controlsHidden) {
+        setControlsHidden(true);
+      }
+    };
+
     const handleTouch = () => {
       if (hasStarted) {
         setShowControls(true);
