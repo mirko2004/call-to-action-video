@@ -32,10 +32,10 @@ const VideoEndPopup = ({ onContinue }: { onContinue: () => void }) => {
         <div className="flex flex-col gap-3">
           <Button 
             onClick={handleContinue}
-            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 px-3 text-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-scale-in leading-tight"
+            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-scale-in"
             style={{ animationDelay: '0.6s' }}
           >
-            🔥 Sono Pronto - Vai al<br className="sm:hidden" /> Contenuto Esclusivo
+            🔥 Sono Pronto - Vai al Contenuto Esclusivo
           </Button>
         </div>
       </div>
@@ -563,7 +563,7 @@ const VideoPlayer = () => {
                 className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold px-4 py-3 text-sm lg:text-base rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full max-w-xs mx-auto animate-scale-in leading-tight"
                 style={{ animationDelay: '0.4s' }}
               >
-                🎥 Vai al Video Esclusivo
+                🔥 Sono Pronto - Vai al<br className="sm:hidden" /> Contenuto Esclusivo
               </Button>
             </div>
           )}
