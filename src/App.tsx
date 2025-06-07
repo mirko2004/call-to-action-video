@@ -15,13 +15,15 @@ const queryClient = new QueryClient();
 const App = () => {
   const [showLanding, setShowLanding] = useState(true);
 
-  // Check if we should show the landing page
-  const userAgent = navigator.userAgent.toLowerCase();
-  const isInstagram = userAgent.includes('instagram');
-  
-  if (!isInstagram) {
-    setShowLanding(false);
-  }
+  useEffect(() => {
+    // Check if we should show the landing page
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isInstagram = userAgent.includes('instagram');
+    
+    if (!isInstagram) {
+      setShowLanding(false);
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -46,3 +48,4 @@ const App = () => {
 };
 
 export default App;
+
