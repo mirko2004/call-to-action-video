@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-export default function InstagramLandingPage() {
+interface InstagramLandingPageProps {
+  onClose: () => void;
+}
+
+export default function InstagramLandingPage({ onClose }: InstagramLandingPageProps) {
   const navigate = useNavigate();
-  const [showLanding, setShowLanding] = useState(true);
 
   useEffect(() => {
-    // Check if we should show the landing page
-    const userAgent = navigator.userAgent.toLowerCase();
-    const isInstagram = userAgent.includes('instagram');
-    
-    if (!isInstagram) {
-      setShowLanding(false);
-      navigate('/'); // Redirect to main site if not on Instagram
-    }
-  }, [navigate]);
+    // Prevent scrolling when modal is open
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
   const handleContinue = () => {
-    setShowLanding(false);
+    onClose();
     navigate('/'); // Redirect to main site
   };
 
@@ -27,13 +27,10 @@ export default function InstagramLandingPage() {
     // Prevent scrolling when modal is open
     if (showLanding) {
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showLanding]);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
