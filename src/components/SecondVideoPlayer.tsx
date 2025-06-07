@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { NodeJS } from 'node';
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import FinalPopup from "./FinalPopup";
 
