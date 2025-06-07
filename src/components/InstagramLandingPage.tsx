@@ -21,12 +21,11 @@ export default function InstagramLandingPage({ onClose }: InstagramLandingPagePr
     navigate('/'); // Redirect to main site
   };
 
-  if (!showLanding) return null;
+
 
   useEffect(() => {
     // Prevent scrolling when modal is open
-    if (showLanding) {
-      document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = 'unset';
     };
