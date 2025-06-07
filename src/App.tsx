@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import SecondVideo from "./pages/SecondVideo";
 import NotFound from "./pages/NotFound";
-import InstagramLandingPage from "../src/components/InstagramLandingPage";
+import InstagramLandingPage from "./components/InstagramLandingPage";
 
 const queryClient = new QueryClient();
 
@@ -30,3 +30,4 @@ const App = () => (
 );
 
 export default App;
+
