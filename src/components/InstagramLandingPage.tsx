@@ -23,9 +23,21 @@ export default function InstagramLandingPage() {
 
   if (!showLanding) return null;
 
+  useEffect(() => {
+    // Prevent scrolling when modal is open
+    if (showLanding) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showLanding]);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-      <div className="max-w-md w-full space-y-8 p-8 bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl text-center">
+    <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-xl max-w-md w-full p-8 text-center animate-scale-in">
         <div className="space-y-6">
           <h1 className="text-2xl font-bold text-yellow-400 animate-fade-in">
             Stai aprendo questo sito da Instagram
@@ -42,5 +54,6 @@ export default function InstagramLandingPage() {
         </div>
       </div>
     </div>
+  );
   );
 }
