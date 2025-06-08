@@ -247,6 +247,8 @@ const VideoPlayer = () => {
     // Nascondi controlli dopo 3 secondi
     controlsTimeout.current = setTimeout(() => {
       if (isPlaying && !isFullscreen) {
+        setShowControls(false);
+      }
     }, 3000);
   }, []);
 
