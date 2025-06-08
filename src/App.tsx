@@ -13,17 +13,21 @@ import InstagramLandingPage from "./components/InstagramLandingPage";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [showLanding, setShowLanding] = useState(true);
+  const [showLanding, setShowLanding] = useState(() => {
+    const saved = localStorage.getItem('showLanding');
+    return saved ? JSON.parse(saved) : true;
+  });
 
+  // Check if we should show the landing page
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isInstagram = userAgent.includes('instagram');
+  
   useEffect(() => {
-    // Check if we should show the landing page
-    const userAgent = navigator.userAgent.toLowerCase();
-    const isInstagram = userAgent.includes('instagram');
-    
     if (!isInstagram) {
       setShowLanding(false);
     }
-  }, []);
+    localStorage.setItem('showLanding', JSON.stringify(showLanding));
+  }, [showLanding, isInstagram]);
 
   return (
     <QueryClientProvider client={queryClient}>
