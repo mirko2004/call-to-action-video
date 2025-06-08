@@ -282,20 +282,42 @@ const VideoPlayer = () => {
   }, [clearControlsTimer]);
 
 // Improved mobile touch controls
-useEffect(() => {
-const handleMouseMove = () => {
-  if (hasStarted) {
-    setShowControls(true);
-    if (isPlaying && !isMobile) {
-      startControlsTimer();
+  useEffect(() => {
+    const handleMouseMove = () => {
+      if (hasStarted) {
+        setShowControls(true);
+        if (isPlaying && !isMobile) {
+          startControlsTimer();
         }
-      } catch (error) {
-        console.error("Exit fullscreen error:", error);
       }
+    };
+
+    const handleTouch = (e: TouchEvent) => {
+      if (hasStarted) {
+        e.preventDefault();
+        setShowControls(true);
+        if (isPlaying) {
+          startControlsTimer();
+        }
+      }
+    };
+
+    if (isMobile) {
+      window.addEventListener('touchstart', handleTouch, { passive: false });
+      window.addEventListener('touchend', handleTouch, { passive: false });
     } else {
-      await enterFullscreenWithLandscape();
+      window.addEventListener('mousemove', handleMouseMove);
     }
-  };
+
+    return () => {
+      if (isMobile) {
+        window.removeEventListener('touchstart', handleTouch);
+        window.removeEventListener('touchend', handleTouch);
+      } else {
+        window.removeEventListener('mousemove', handleMouseMove);
+      }
+    };
+  }, [isPlaying, hasStarted, startControlsTimer, isMobile]);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
